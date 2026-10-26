@@ -1,7 +1,8 @@
 r"""Download the datasets and the trained surrogates from Hugging Face.
 
-Every file lands where the code reads it: the parquets and their settings JSONs in
-`data/`, the surrogate weights beside their JSONs in `trained_models/`, and each
+Every file lands where the code reads it: the parquets, their settings JSONs and the
+DESC starting point of their rows in `data/`, the surrogate weights beside their JSONs
+in `trained_models/`, and each
 surrogate's training history under
 `results_plots_tables/results/mhd_equilibrium_forward_models/models_training/`. Both
 repositories are pinned to the revision the thesis results were computed with. A file
@@ -30,6 +31,9 @@ logger = logging.getLogger(__name__)
 
 _PACKAGE_DIRECTORY = pathlib.Path(__file__).parents[1]
 
+DATA_DIRECTORY = _PACKAGE_DIRECTORY.parents[1] / "data"
+"""Directory the datasets are read from by default."""
+
 
 class Repository(NamedTuple):
     """A Hugging Face repository at a fixed revision."""
@@ -42,7 +46,7 @@ class Repository(NamedTuple):
 DATASETS_REPOSITORY = Repository(
     "proxima-fusion/diagnostics-bayesian-experimental-design-datasets",
     "dataset",
-    "d828a39505ddee46b41cc54091e30419ea760b32",
+    "1867b24544342ccc081b76724701cd5bbdccf4fb",
 )
 SURROGATES_REPOSITORY = Repository(
     "proxima-fusion/diagnostics-bayesian-experimental-design-surrogates",
@@ -55,6 +59,9 @@ DATASETS = (
     "equilibrium_a_interpolator_28_spline_input",
 )
 """The surrogates' training dataset and the equilibrium interpolator's lattice."""
+
+WARM_START = "equilibrium_a_warm_start.json"
+"""The DESC starting point every row of both datasets was solved from."""
 
 SURROGATES = (
     "20260907_081512_mlp_data_fnorm_only_pca_hand_tuned",
@@ -71,7 +78,7 @@ def main() -> None:
     parser.add_argument(
         "--data-dir",
         type=pathlib.Path,
-        default=_PACKAGE_DIRECTORY.parents[1] / "data",
+        default=DATA_DIRECTORY,
         help="Directory the dataset parquets and settings JSONs are written to.",
     )
     parser.add_argument(
@@ -94,6 +101,7 @@ def main() -> None:
     for dataset in DATASETS:
         for filename in (f"{dataset}.parquet", f"{dataset}_settings.json"):
             download(DATASETS_REPOSITORY, filename, arguments.data_dir / filename)
+    download(DATASETS_REPOSITORY, WARM_START, arguments.data_dir / WARM_START)
     for surrogate in SURROGATES:
         for filename in (f"{surrogate}.npz", f"{surrogate}.json"):
             download(SURROGATES_REPOSITORY, filename, arguments.models_dir / filename)

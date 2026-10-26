@@ -67,7 +67,7 @@ The datasets and the trained surrogates are on Hugging Face, under CC BY 4.0:
 
 | Repository | Content |
 |---|---|
-| [diagnostics-bayesian-experimental-design-datasets](https://huggingface.co/datasets/proxima-fusion/diagnostics-bayesian-experimental-design-datasets) | The 3000 DESC equilibria the surrogates are trained on and the 28-node lattice of the equilibrium interpolator, each a parquet with a settings JSON (basis, mode tables, radial grids, train/val/test split) |
+| [diagnostics-bayesian-experimental-design-datasets](https://huggingface.co/datasets/proxima-fusion/diagnostics-bayesian-experimental-design-datasets) | The 3000 DESC equilibria the surrogates are trained on and the 28-node lattice of the equilibrium interpolator, each a parquet with a settings JSON (basis, mode tables, radial grids, train/val/test split), and the DESC starting point every row was solved from |
 | [diagnostics-bayesian-experimental-design-surrogates](https://huggingface.co/proxima-fusion/diagnostics-bayesian-experimental-design-surrogates) | Weights of the two MLP surrogates and their training histories |
 
 After the installation below, download them into place at the revision the thesis used.
@@ -79,7 +79,7 @@ python src/plasma_state_estimation_for_diagnostic_placement_optimization/mhd_equ
 
 While the repositories are private, log in first with `hf auth login`.
 `data/explore_dataset.ipynb` loads the training dataset, and `data/README.md` describes
-how the equilibria were generated.
+how the equilibria were generated and how to regenerate one.
 
 ## Installation
 

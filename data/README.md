@@ -1,8 +1,10 @@
 # Datasets
 
-Fixed-boundary DESC equilibria on the boundary of equilibrium A, scaled to B0 = 1 T
-(NFP = 3, stellarator symmetric, L = M = 11, N = 12), one row per pressure profile. The
-parquets and their `_settings.json` are downloaded from Hugging Face (see the top-level
+Datasets of fixed-boundary DESC equilibria for a quasi-isodynamic stellarator
+configuration (NFP = 3, stellarator symmetric) with the corresponding pressure profiles.
+The configuration is scaled to B0 = 1 T. The Fourier-Zernike resolution used was
+L = M = 11, N = 12. The parquets, their `_settings.json` and
+`equilibrium_a_warm_start.json` are downloaded from Hugging Face (see the top-level
 `README.md`). A settings JSON holds the basis and, for the 3k dataset, the
 train/val/test split, which `equilibrium_a_3k_spline_input_split.json` repeats.
 
@@ -14,13 +16,15 @@ train/val/test split, which `equilibrium_a_3k_spline_input_split.json` repeats.
 Columns: `pressure_knots` and `pressure_params` (the pressure spline the solver saw, Pa;
 `pressure` repeats the values), `Psi` (Wb), `R_lmn`, `Z_lmn`, `lambda_lmn`, `iotaf`,
 `beta_volume_averaged`, the `fnorm_volume_averaged_*` force residual, and
-`desc_equilibrium_id` (provenance).
+`desc_equilibrium_id` (row id).
 
 ## Generation
 
-Each row is one DESC `Equilibrium.solve(objective="force")`, `lsq-exact` (trust-region
-least squares) at DESC's default tolerances, warm started from the shared vacuum
-equilibrium.
+A vacuum equilibrium was computed once with VMEC (fixed boundary), converted to DESC at
+L = M = 11, N = 12 and solved again with DESC. Every row is then one DESC
+`Equilibrium.solve(objective="force")`, `lsq-exact` (trust-region least squares) at
+DESC's default tolerances, started from that vacuum equilibrium with the row's pressure
+profile. `equilibrium_a_warm_start.json` holds this starting point.
 
 | Dataset | Wall time | Machine |
 |---|---|---|
@@ -29,17 +33,12 @@ equilibrium.
 
 ## Regenerating a row
 
-```python
-import desc.profiles
-
-eq = vacuum.copy()  # vacuum warm start, provenance id D2LKaPDSGCuGTjv2Zcj9g8A
-eq.surface = boundary  # provenance id DRnvsp6pzgmPZWwXdF6GDCG, check_orientation=True
-eq.pressure = desc.profiles.SplineProfile(knots=row.pressure_knots, values=row.pressure_params)
-eq.current = desc.profiles.SplineProfile(knots=row.pressure_knots, values=0 * row.pressure_params)
-eq.iota = None
-eq.Psi = row.Psi
-eq.solve(objective="force")
+```
+cd src/plasma_state_estimation_for_diagnostic_placement_optimization
+python mhd_equilibrium_forward_models/regenerate_dataset_row.py --row-id <desc_equilibrium_id>
 ```
 
-`iotaf`, `beta_volume_averaged` and the `fnorm_*` columns are then evaluated on the
-solved `eq`.
+solves one row again from the starting point (about 7 min and 10 GB of memory) and
+prints its largest difference from the stored `R_lmn`, `Z_lmn` and `lambda_lmn`.
+`iotaf`, `beta_volume_averaged` and the `fnorm_*` columns are evaluated on the solved
+equilibrium.

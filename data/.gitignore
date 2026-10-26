@@ -1,6 +1,8 @@
 *.parquet
 
-# Written beside the parquet by the export and by `derive_spline_input_dataset.py`:
-# thousands of lines of mode tables and grids, regenerated in seconds. The pinned
-# train/val/test split is kept separately, in `<dataset>_split.json`.
+# Downloaded beside the parquet: the spectral basis, mode tables, radial grids and, for
+# the 3k dataset, the train/val/test split.
 *_settings.json
+
+# The DESC starting point of every row, downloaded with the datasets.
+*_warm_start.json

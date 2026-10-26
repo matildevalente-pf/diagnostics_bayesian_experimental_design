@@ -12,3 +12,9 @@ dist/
 # Retired surrogate checkpoints, kept on disk for re-evaluation only, and console logs.
 src/plasma_state_estimation_for_diagnostic_placement_optimization/mhd_equilibrium_forward_models/trained_models/old_models/
 *.log
+
+# Python and Jupyter caches, and a local virtual environment.
+__pycache__/
+.pytest_cache/
+.ipynb_checkpoints/
+.venv/

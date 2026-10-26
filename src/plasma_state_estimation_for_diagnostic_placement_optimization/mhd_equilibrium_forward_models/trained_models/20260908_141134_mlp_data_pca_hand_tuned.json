@@ -1,0 +1,75 @@
+{
+    "kind": "mlp",
+    "name": "20260908_141134_mlp_data_pca_hand_tuned",
+    "configuration": "mlp_data_pca_hand_tuned",
+    "description": "Data stage of the 2026-08-29 recipe alone, 99-knot input: E1b before its force stage",
+    "generated": "2026-09-08",
+    "settings": {
+        "architecture": {
+            "hidden_layer_widths": [
+                512,
+                512,
+                512
+            ],
+            "activation": "leaky_relu",
+            "dropout_rate": 0.0
+        },
+        "weight_decay": 0.0,
+        "batch_size": 32,
+        "seed": 42,
+        "log_every_n_epochs": 50,
+        "n_pca_components": 1244,
+        "energy_scale": 1.5
+    },
+    "curriculum": {
+        "stages": [
+            {
+                "loss_config": {
+                    "use_data": true,
+                    "use_fnorm": false,
+                    "loss_fnorm_weight": null
+                },
+                "n_epochs": 2000,
+                "patience": 200,
+                "min_epochs": 500,
+                "learning_rate": 0.001,
+                "label": "s1_data",
+                "selection_term": "total"
+            }
+        ]
+    },
+    "resolution": {
+        "radial_resolution": 11,
+        "poloidal_resolution": 11,
+        "toroidal_resolution": 12,
+        "n_field_periods": 3,
+        "is_stellarator_symmetric": true,
+        "spectral_indexing": "ansi"
+    },
+    "training": {
+        "n_epochs": 1101,
+        "train_mse": 1.5732833862304687,
+        "validation_total": 1.9048045873641968,
+        "train_seconds": 362.03661267300004,
+        "n_parameters": 1214684,
+        "n_latent": 1244,
+        "stages": [
+            {
+                "label": "s1_data",
+                "n_epochs": 1101,
+                "train_mse": 1.5732833862304687,
+                "validation_total": 1.9048045873641968,
+                "validation_data": 1.9048045873641968,
+                "validation_fnorm": 0.0,
+                "selection_term": "total",
+                "fnorm_weight": null
+            }
+        ]
+    },
+    "provenance": {
+        "dataset": "equilibrium_a_3k_spline_input",
+        "run_directory": "results_plots_tables/results/mhd_equilibrium_forward_models/models_training/20260908_141134_mlp_data_pca_hand_tuned",
+        "force_normalization_constant": null,
+        "fnorm_template_equilibrium_id": null
+    }
+}

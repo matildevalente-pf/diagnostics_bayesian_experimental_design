@@ -1,0 +1,128 @@
+# Plasma state estimation for diagnostic placement optimization
+
+Code of the Master's thesis *Bayesian Experimental Design of Fusion Plasma Diagnostics
+with Self-Consistent MHD Equilibria* (Technical University of Munich, 2026).
+
+## Abstract
+
+The confinement of a fusion plasma is characterized by its stored energy and energy
+confinement time. Both are derived from the plasma state, characterized by its pressure
+profile, and from the magnetohydrodynamic (MHD) equilibrium that this pressure modifies.
+Since plasma diagnostics measure neither directly, the plasma state and its equilibrium
+are inferred from the diagnostic readings. This inverse problem is commonly solved by
+Bayesian inference, which yields the plasma state together with its uncertainty.
+
+How precisely the plasma state is inferred depends on the design and placement of the
+diagnostics. Bayesian experimental design ranks candidate designs by their expected
+information gain, the information their measurements are expected to provide on the
+plasma state. At W7-X, it was used to optimize individual diagnostics, with the gain
+estimated by Monte Carlo sampling. This work develops a general diagnostic design method
+that extends this and other previous approaches in three main ways. First, the placement
+of several diagnostics is optimized jointly rather than one diagnostic at a time. Second,
+a physics-informed neural-network surrogate approximates the MHD equilibrium of each
+plasma state from its pressure in milliseconds. The design thereby accounts for the
+displacement of the flux surfaces and for the different plasma states expected in
+operation. Third, every model is JAX traceable, so that the placement optimization and
+the inference may use automatic differentiation.
+
+This method is applied to Alpha, the quasi-isodynamic stellarator demonstrator under
+development by Proxima Fusion with the Max Planck Institute for Plasma Physics. The
+plasma configuration used is not that of Alpha itself, but a quasi-isodynamic
+configuration that shares its main properties. The diagnostics designed and optimized
+are a Thomson scattering system, which measures the local electron density ($n_e$) and
+temperature ($T_e$), and an interferometer, which provides line integrated $n_e$. The
+results show that the joint placement optimization of both diagnostics, relative to the
+initial layout, lowers the errors of the inferred $n_e$ and $T_e$ profiles by 13.9 and
+20.7% and narrows their uncertainty bands by 57.8 and 15.2%. Additionally, inferring
+each plasma state with its own equilibrium from the surrogate, instead of a fixed
+equilibrium, lowers the $n_e$ and $T_e$ errors by 16.6 and 22.2%, since the displacement
+of the flux surfaces by the plasma pressure is then accounted for. Finally, the coating
+and degradation of optical components and drifts of the detector gain change the
+calibration of a Thomson scattering system over time. One correction factor per
+polychromator is therefore inferred together with the profiles. In large fusion
+experiments, where a dedicated calibration requires access to the torus hall, these
+corrections could reveal a calibration drift and thereby reduce the downtime spent on
+recalibration. This work thereby provides a fast and integrated method to design and
+place plasma diagnostics within the stellarator design cycle.
+
+## Structure
+
+The package lives in `src/plasma_state_estimation_for_diagnostic_placement_optimization/`;
+the datasets in the top-level `data/`.
+
+| Folder | Content |
+|---|---|
+| `ideal_mhd/` | DESC Fourier-Zernike geometry evaluation and the xyz to flux-coordinate Newton solve |
+| `inverse_mapping/` | Differentiable inverse map (implicit-function-theorem derivatives) and its test equilibria |
+| `mhd_equilibrium_forward_models/` | Equilibrium surrogates (MLP, trilinear interpolator): datasets, training, hyperparameter search, trained models |
+| `diagnostics_forward_models/` | Thomson scattering and interferometer synthetic diagnostics, chord geometry, the pinned design point |
+| `bayesian_inference/` | Profile parametrizations, priors, likelihood, NumPyro model, MAP, Laplace approximation and NUTS |
+| `diagnostics_placement_optimization/` | Expected information gain of a diagnostic layout |
+| `results_plots_tables/` | One folder per study (run script, notebook, figures, tables) and the shared plotting and sweep utilities |
+| `data/` | Datasets downloaded from Hugging Face and a notebook to explore them, see `data/README.md` |
+
+## Data and trained models
+
+The datasets and the trained surrogates are on Hugging Face, under CC BY 4.0:
+
+| Repository | Content |
+|---|---|
+| [diagnostics-bayesian-experimental-design-datasets](https://huggingface.co/datasets/proxima-fusion/diagnostics-bayesian-experimental-design-datasets) | The 3000 DESC equilibria the surrogates are trained on and the 28-node lattice of the equilibrium interpolator, each a parquet with a settings JSON (basis, mode tables, radial grids, train/val/test split) |
+| [diagnostics-bayesian-experimental-design-surrogates](https://huggingface.co/proxima-fusion/diagnostics-bayesian-experimental-design-surrogates) | Weights of the two MLP surrogates and their training histories |
+
+After the installation below, download them into place at the revision the thesis used.
+Files that already exist are kept:
+
+```
+python src/plasma_state_estimation_for_diagnostic_placement_optimization/mhd_equilibrium_forward_models/download_from_hugging_face.py
+```
+
+While the repositories are private, log in first with `hf auth login`.
+`data/explore_dataset.ipynb` loads the training dataset, and `data/README.md` describes
+how the equilibria were generated.
+
+## Installation
+
+Needs Python 3.12 or later and the netCDF C library, which DESC uses through `netcdf4`:
+
+```
+sudo apt-get install -y libnetcdf-dev   # Ubuntu / Debian
+brew install netcdf                     # macOS
+```
+
+Then, from this folder:
+
+```
+python3.12 -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+pip install -e ".[test,notebooks]"
+```
+
+`requirements.txt` pins the versions the thesis results were computed with. `-e`
+installs the package in editable mode, so changes under `src/` apply without
+reinstalling. The `test` extra adds pytest and `notebooks` adds Jupyter for the
+notebooks under `results_plots_tables/` and `data/`.
+
+To skip the system library, use the Docker image instead. It installs a copy of the
+package, so rebuild it after changing `src/`:
+
+```
+docker build -t plasma-state-estimation-for-diagnostic-placement-optimization .
+docker run --rm -v $(pwd):/workspace \
+    plasma-state-estimation-for-diagnostic-placement-optimization \
+    python path/to/script.py
+```
+
+## Tests
+
+From this folder:
+
+```
+pytest .                    # unit tests, about 2 min, no data needed
+pytest . -k <test_name>     # one test
+pytest . -m integration     # slow tests
+```
+
+The integration tests need the dataset and the surrogates downloaded first (see
+"Data and trained models").

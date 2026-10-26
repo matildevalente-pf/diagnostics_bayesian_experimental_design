@@ -4,6 +4,7 @@ Every argument has a default, so the command is usually just the path to this sc
 
     python src/plasma_state_estimation_for_diagnostic_placement_optimization/results_plots_tables/results/mhd_equilibrium_forward_models/test_set_evaluation/run_test_set_evaluation.py \\
         --models equilibrium_interpolator 20260908_141134_mlp_data_pca_hand_tuned \\
+            20260907_081512_mlp_data_fnorm_only_pca_hand_tuned \\
         --dataset equilibrium_a_3k_spline_input \\
         --data-dir data \\
         --models-dir src/plasma_state_estimation_for_diagnostic_placement_optimization/mhd_equilibrium_forward_models/trained_models \\

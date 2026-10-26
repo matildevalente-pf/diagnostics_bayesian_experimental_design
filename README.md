@@ -104,15 +104,19 @@ installs the package in editable mode, so changes under `src/` apply without
 reinstalling. The `test` extra adds pytest and `notebooks` adds Jupyter for the
 notebooks under `results_plots_tables/` and `data/`.
 
-To skip the system library, use the Docker image instead. It installs a copy of the
-package, so rebuild it after changing `src/`:
+To skip the system library, use the Docker image instead. It holds the pinned versions,
+and the checkout is mounted at `/workspace`, so downloads and results land in it and a
+change to `src/` needs no rebuild:
 
 ```
-docker build -t plasma-state-estimation-for-diagnostic-placement-optimization .
-docker run --rm -v $(pwd):/workspace \
-    plasma-state-estimation-for-diagnostic-placement-optimization \
-    python path/to/script.py
+docker build -t diagnostics-bayesian-experimental-design .
+docker run --rm -it --memory 24g --user "$(id -u):$(id -g)" -e HOME=/tmp \
+    -v "$HOME/.cache/huggingface":/tmp/.cache/huggingface -v "$(pwd)":/workspace \
+    diagnostics-bayesian-experimental-design python path/to/script.py
 ```
+
+`--memory` stops a container that outgrows it instead of the host, and the Hugging Face
+mount passes in the login of `hf auth login`.
 
 ## Tests
 

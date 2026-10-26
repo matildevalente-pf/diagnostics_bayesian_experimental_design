@@ -21,7 +21,7 @@ the quantity of interest.
 
 Both arms are `map_laplace`, a few minutes per cell:
 
-    python run_study.py --truths wide          # one truth, both arms, to start
+    python run_study.py --truths wide_1_parametric   # one truth, both arms, to start
     python run_study.py --workers 4
 
 Writes `profile_parameters.csv`, `profile_metrics.csv` and `inference_ids.json` beside

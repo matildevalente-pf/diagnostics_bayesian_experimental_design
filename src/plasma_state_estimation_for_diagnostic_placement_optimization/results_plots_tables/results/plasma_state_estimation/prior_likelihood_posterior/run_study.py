@@ -8,10 +8,10 @@ model samples and pushed through the same profile evaluator, so all three appear
 axis. The two inferred cases are posteriors, one per noise model, never likelihoods.
 
     python run_study.py --workers 7
-    python run_study.py --truths wide hollow --workers 2
+    python run_study.py --truths wide_1_parametric hollow_gp --workers 2
     python run_study.py --skip-stored --workers 7        # resume an interrupted run
-    python run_study.py --method mcmc_nuts --truths wide high_beta high_beta_broad \
-        --workers 6                                      # NUTS reference, from the MAP
+    python run_study.py --method mcmc_nuts --truths wide_1_parametric \
+        wide_high_beta_gp wide_low_beta_gp --workers 6   # NUTS reference, from the MAP
 
 The truths are independent and their cells run concurrently, one process each. A
 cell differs from its siblings in its Thomson uncertainty model and in nothing else, the

@@ -130,3 +130,128 @@ pytest . -m integration     # slow tests
 
 The integration tests need the dataset and the surrogates downloaded first (see
 "Data and trained models").
+
+## Reproducing the thesis results
+
+Notebook paths are relative to `src/plasma_state_estimation_for_diagnostic_placement_optimization/`,
+except `data/explore_dataset.ipynb`. Open each in VS Code or Jupyter with the
+`diagnostics-bed` kernel and run all cells.
+
+### 1. Clone and install
+
+```
+gh repo clone matildevalente-pf/diagnostics_bayesian_experimental_design
+cd diagnostics_bayesian_experimental_design
+
+sudo apt-get install -y libnetcdf-dev      # Ubuntu; on macOS: brew install netcdf
+python3.12 -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+pip install -e ".[test,notebooks]"
+python -m ipykernel install --user --name diagnostics-bed --display-name "diagnostics-bed (Python 3.12)"
+
+# must print a path inside this folder
+python -c "import plasma_state_estimation_for_diagnostic_placement_optimization as p; print(p.__path__)"
+```
+
+### 2. Shortcuts for this terminal
+
+```
+S=src/plasma_state_estimation_for_diagnostic_placement_optimization
+R=$S/results_plots_tables/results
+E=$R/plasma_state_estimation
+P=$R/diagnostics_placement_optimization
+```
+
+### 3. Tests, data and one regenerated row
+
+```
+pytest .                                   # 106 passed
+hf auth login
+python $S/mhd_equilibrium_forward_models/download_from_hugging_face.py   # 13 files
+pytest . -m integration                    # 3 passed
+
+# about 7 min, 10 GB; expect max differences ~1.5e-14, 2.2e-14, 1.7e-13
+python $S/mhd_equilibrium_forward_models/regenerate_dataset_row.py --row-id DgSADUTGs7s2ZBxE5xge2ej
+```
+
+Notebook: `data/explore_dataset.ipynb`
+
+### 4. Methods chapter
+
+Notebook only: `results_plots_tables/results/diagnostics_forward_models/diagnostics_forward_models.ipynb`
+
+```
+python $R/inverse_mapping/stress_tests/run_soak.py
+```
+
+Notebook: `results_plots_tables/results/inverse_mapping/inverse_mapping.ipynb`
+
+```
+python $R/mhd_equilibrium_forward_models/test_set_evaluation/run_test_set_evaluation.py \
+    --models equilibrium_interpolator 20260908_141134_mlp_data_pca_hand_tuned \
+    20260907_081512_mlp_data_fnorm_only_pca_hand_tuned --n-workers 4
+```
+
+Notebook: `results_plots_tables/results/mhd_equilibrium_forward_models/test_set_evaluation/results.ipynb`
+
+```
+# 480 DESC solves, several hours (can be left for last)
+python $R/mhd_equilibrium_forward_models/desc_resolution_analysis/run_desc_resolution_analysis.py --n-workers 2
+```
+
+Notebook: `results_plots_tables/results/mhd_equilibrium_forward_models/desc_resolution_analysis/desc_resolution_analysis.ipynb`
+
+### 5. Plasma state estimation (Sec. 3.1)
+
+After each study, run the `results.ipynb` in `results_plots_tables/results/plasma_state_estimation/<study>/`.
+
+```
+# 3.1.1 mcmc_benchmark (the NUTS arm takes 2 to 3 h per run; good overnight)
+python $E/mcmc_benchmark/run_study.py --arms map_laplace --workers 4
+python $E/mcmc_benchmark/run_study.py --arms mcmc_nuts --workers 4
+
+# 3.1.2 prior_likelihood_posterior
+python $E/prior_likelihood_posterior/run_study.py --workers 4
+
+# 3.1.3 ts_band_scale
+python $E/ts_band_scale/run_study.py --workers 4
+
+# 3.1.4 self_consistency_analysis
+python $E/self_consistency_analysis/run_study.py --workers 4
+
+# 3.1.5 ts_uncertainty_level_vs_inference (336 runs, a few hours)
+python $E/ts_uncertainty_level_vs_inference/run_study.py --workers 4
+```
+
+### 6. Diagnostic placement (Sec. 3.2, strictly in this order)
+
+```
+# 3.2.1
+python $P/if_placement_study/run_study.py
+python $P/if_placement_study/run_study.py --chord-counts 1 2 3 4 5 6 \
+    --output $P/if_placement_study/tables/if_placement_scan_chord_counts.csv     # about 3 h
+python $P/run_placement_inference.py --study if_placement_study --workers 4
+python $P/run_placement_inference.py --study if_placement_study \
+    --scan $P/if_placement_study/tables/if_placement_scan_chord_counts.csv \
+    --layouts 3_chords_optimized 4_chords_optimized 5_chords_optimized 6_chords_optimized --workers 4
+```
+
+Notebook: `results_plots_tables/results/diagnostics_placement_optimization/if_placement_study/results.ipynb`
+
+```
+# 3.2.2 to 3.2.4: all three scans before any inference
+python $P/if_and_ts_placement_study/run_scan.py --laser-through-axis                         # 1390 layouts, best 37.43 bit
+python $P/if_and_ts_placement_study/run_scan.py --laser-through-axis --thomson-only          # best 32.44 bit
+python $P/if_and_ts_placement_study/run_scan.py --laser-through-axis --interferometer-only   # 15 rows, best 14.03 bit
+python $P/run_placement_inference.py --study if_and_ts_placement_study --workers 4
+python $P/run_placement_inference.py --study if_and_ts_placement_study \
+    --layouts initial_guess optimized separately_optimized sequentially_optimized \
+    --n-seeds 5 --skip-stored --workers 4
+python $P/run_placement_inference.py --study if_and_ts_placement_study \
+    --layouts initial_guess optimized \
+    --truths test_state_1_parametric test_state_2_parametric test_state_3_parametric \
+    test_state_4_parametric test_state_5_gp test_state_6_gp test_state_7_gp test_state_8_gp --workers 4
+```
+
+Notebook: `results_plots_tables/results/diagnostics_placement_optimization/if_and_ts_placement_study/results.ipynb`

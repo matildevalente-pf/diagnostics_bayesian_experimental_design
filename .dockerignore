@@ -1,0 +1,14 @@
+# The image holds the code only: data, weights and results are downloaded or written
+# into the mounted checkout at run time.
+.git
+.venv
+**/__pycache__
+**/.pytest_cache
+**/.ipynb_checkpoints
+data/*.parquet
+data/*_settings.json
+data/*_warm_start.json
+src/plasma_state_estimation_for_diagnostic_placement_optimization/mhd_equilibrium_forward_models/trained_models/*.npz
+src/plasma_state_estimation_for_diagnostic_placement_optimization/results_plots_tables/PlasmaStateInferenceResult
+src/plasma_state_estimation_for_diagnostic_placement_optimization/results_plots_tables/DiagnosticPlacement
+src/plasma_state_estimation_for_diagnostic_placement_optimization/results_plots_tables/results/mhd_equilibrium_forward_models/models_training/*/

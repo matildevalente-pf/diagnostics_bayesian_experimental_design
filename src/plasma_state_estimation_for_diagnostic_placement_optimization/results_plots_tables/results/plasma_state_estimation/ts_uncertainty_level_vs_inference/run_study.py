@@ -7,8 +7,8 @@ catalog truth and `--n-seeds` noisy draws.
 
     python run_study.py --workers 5
     python run_study.py --levels 1 5 --chords 0 5 --workers 5
-    python run_study.py --method mcmc_nuts --truths wide hollow --levels 1 1.2 5 \
-        --chords 5 --workers 6                     # NUTS reference
+    python run_study.py --method mcmc_nuts --truths wide_1_parametric hollow_gp \
+        --levels 1 1.2 5 --chords 5 --workers 6    # NUTS reference
 
 Writes `inference_ids.json` and the comparison tables in `tables/` beside this script
 (`inference_ids_mcmc_nuts.json` and no tables for `--method mcmc_nuts`), and one record

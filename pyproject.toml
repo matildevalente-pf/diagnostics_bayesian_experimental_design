@@ -1,0 +1,49 @@
+[build-system]
+requires = ["setuptools>=64"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "plasma-state-estimation-for-diagnostic-placement-optimization"
+version = "0.1.0"
+description = "Bayesian inference of electron density and temperature profiles from synthetic and measured diagnostics, through a neural-network MHD equilibrium surrogate, applied to diagnostic placement optimization for stellarators."
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "desc-opt",
+    "flax",
+    "huggingface_hub",
+    "jax",
+    "jaxtyping",
+    "matplotlib",
+    "numpy",
+    "numpyro",
+    "optax",
+    "pandas",
+    "pyarrow",
+    "pydantic",
+    "scikit-learn",
+    "scipy",
+]
+
+[project.optional-dependencies]
+notebooks = ["jupyter"]
+test = ["pytest"]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+# Local artifacts the package loads relative to its own `__file__`; without this an
+# installed (non-editable) copy cannot find them.
+[tool.setuptools.package-data]
+"*" = ["*.npz", "*.json"]
+
+[tool.pytest.ini_options]
+# This section is what keeps `pytest .` self-contained: pytest stops walking up at the
+# first pyproject.toml that defines it.
+pythonpath = ["src"]
+testpaths = ["src"]
+python_files = ["*_test.py"]
+markers = [
+    "integration: needs DESC solves, a trained model, or the full training dataset",
+]
+addopts = ["-m", "not integration"]

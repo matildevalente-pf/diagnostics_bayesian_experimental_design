@@ -1,0 +1,98 @@
+{
+    "kind": "mlp",
+    "name": "20260907_081512_mlp_data_fnorm_only_pca_hand_tuned",
+    "configuration": "mlp_data_fnorm_only_pca_hand_tuned",
+    "description": "E1b: force residual on the stored pressure spline, 99-knot pressure input, 2026-08-29 recipe",
+    "generated": "2026-09-07",
+    "settings": {
+        "architecture": {
+            "hidden_layer_widths": [
+                512,
+                512,
+                512
+            ],
+            "activation": "leaky_relu",
+            "dropout_rate": 0.0
+        },
+        "weight_decay": 0.0,
+        "batch_size": 32,
+        "seed": 42,
+        "log_every_n_epochs": 50,
+        "n_pca_components": 1244,
+        "energy_scale": 1.5
+    },
+    "curriculum": {
+        "stages": [
+            {
+                "loss_config": {
+                    "use_data": true,
+                    "use_fnorm": false,
+                    "loss_fnorm_weight": null
+                },
+                "n_epochs": 2000,
+                "patience": 200,
+                "min_epochs": 500,
+                "learning_rate": 0.001,
+                "label": "s1_data",
+                "selection_term": "total"
+            },
+            {
+                "loss_config": {
+                    "use_data": false,
+                    "use_fnorm": true,
+                    "loss_fnorm_weight": 1.0
+                },
+                "n_epochs": 2000,
+                "patience": 100,
+                "min_epochs": 200,
+                "learning_rate": 0.0001,
+                "label": "s2_fnorm_only",
+                "selection_term": "fnorm"
+            }
+        ]
+    },
+    "resolution": {
+        "radial_resolution": 11,
+        "poloidal_resolution": 11,
+        "toroidal_resolution": 12,
+        "n_field_periods": 3,
+        "is_stellarator_symmetric": true,
+        "spectral_indexing": "ansi"
+    },
+    "training": {
+        "n_epochs": 3101,
+        "train_mse": 0.0,
+        "validation_total": -11.803640365600586,
+        "train_seconds": 73822.59392071504,
+        "n_parameters": 1214684,
+        "n_latent": 1244,
+        "stages": [
+            {
+                "label": "s1_data",
+                "n_epochs": 1101,
+                "train_mse": 1.5745925291379292,
+                "validation_total": 1.8995025157928467,
+                "validation_data": 1.8995025157928467,
+                "validation_fnorm": 0.0,
+                "selection_term": "total",
+                "fnorm_weight": null
+            },
+            {
+                "label": "s2_fnorm_only",
+                "n_epochs": 2000,
+                "train_mse": 0.0,
+                "validation_total": -11.803640365600586,
+                "validation_data": 0.0,
+                "validation_fnorm": -11.803640365600586,
+                "selection_term": "fnorm",
+                "fnorm_weight": 1.0
+            }
+        ]
+    },
+    "provenance": {
+        "dataset": "equilibrium_a_3k_spline_input",
+        "run_directory": "results_plots_tables/results/mhd_equilibrium_forward_models/models_training/20260907_081512_mlp_data_fnorm_only_pca_hand_tuned",
+        "force_normalization_constant": 511287625.693688,
+        "fnorm_template_equilibrium_id": "DGhCMoV2YHgCQHZo2jSiSzh"
+    }
+}

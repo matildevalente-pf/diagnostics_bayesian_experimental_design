@@ -1,0 +1,8 @@
+*.parquet
+
+# Downloaded beside the parquet: the spectral basis, mode tables, radial grids and, for
+# the 3k dataset, the train/val/test split.
+*_settings.json
+
+# The DESC starting point of every row, downloaded with the datasets.
+*_warm_start.json

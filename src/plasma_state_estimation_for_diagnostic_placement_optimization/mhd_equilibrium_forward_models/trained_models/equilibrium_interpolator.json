@@ -1,0 +1,10 @@
+{
+    "kind": "interpolator",
+    "name": "equilibrium_interpolator",
+    "generated": "2026-09-05",
+    "provenance": {
+        "lattice_parquet": "equilibrium_a_interpolator_28_spline_input.parquet",
+        "lattice_settings": "equilibrium_a_interpolator_28_spline_input_settings.json"
+    },
+    "notes": "Trilinear interpolation over the 28-node lattice; exact on p(rho) = p0 (1 - rho^a)^b and the accuracy floor the networks are measured against. Since 2026-09-08 the lattice reads the pressure at the 99 stored spline knots, like the MLPs."
+}

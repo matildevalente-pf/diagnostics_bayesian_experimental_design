@@ -37,6 +37,9 @@ from plasma_state_estimation_for_diagnostic_placement_optimization.diagnostics_f
 from plasma_state_estimation_for_diagnostic_placement_optimization.diagnostics_placement_optimization import (  # noqa: E402,E501
     diagnostics_placement_optimization_utils,
 )
+from plasma_state_estimation_for_diagnostic_placement_optimization.ideal_mhd import (
+    desc_types,
+)
 from plasma_state_estimation_for_diagnostic_placement_optimization.mhd_equilibrium_forward_models import (  # noqa: E402,E501
     model_storage_utils,
 )
@@ -75,6 +78,7 @@ def chord_rows(
     posterior: posterior_utils.Posterior,
     settings: inference_types.PlasmaEstimationSettings,
     surrogate: model_storage_utils.LoadedSurrogate,
+    fixed_coefficients: desc_types.DescFourierZernikeCoefficients | None = None,
 ) -> jt.Float[jax.Array, "n_chord n_param"]:
     """Each chord's whitened reading gradient at `z`: its row of the Gauss-Newton
     Jacobian, divided by the constant `settings.interferometer_sigma`.
@@ -87,6 +91,7 @@ def chord_rows(
         settings: The inference configuration, for the forward resolutions and the
             chord uncertainty.
         surrogate: The equilibrium forward model.
+        fixed_coefficients: Geometry to hold frozen; None predicts it per `z`.
 
     Returns:
         One row per chord.
@@ -97,7 +102,7 @@ def chord_rows(
         settings=settings,
         surrogate=surrogate,
         flux_guess=None,
-        fixed_coefficients=None,
+        fixed_coefficients=fixed_coefficients,
     )
     ones = jnp.ones(starts.shape[0])
     readings = residuals(

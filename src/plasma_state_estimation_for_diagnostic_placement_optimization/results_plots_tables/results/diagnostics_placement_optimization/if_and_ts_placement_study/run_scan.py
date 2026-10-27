@@ -5,9 +5,12 @@ two optics and a second chord, by the expected Kullback-Leibler divergence.
     python run_scan.py --laser-through-axis --output tables/<name>.csv
     python run_scan.py --laser-through-axis --thomson-only
     python run_scan.py --laser-through-axis --interferometer-only
+    python run_scan.py --laser-through-axis --fixed-equilibrium
 
 `--thomson-only` and `--interferometer-only` score each diagnostic alone on the joint
 problem's catalogue; `separately_optimized` and `sequentially_optimized` combine them.
+`--fixed-equilibrium` linearizes on the reference equilibrium held fixed instead of
+the surrogate equilibrium of each plasma state.
 """
 
 import argparse
@@ -105,6 +108,12 @@ OUTPUT = _MODULE_DIRECTORY / "tables/if_and_ts_placement_scan.csv"
 THOMSON_ONLY_OUTPUT = _MODULE_DIRECTORY / "tables/thomson_placement_scan.csv"
 """Where `--thomson-only` writes the scan of the Thomson system alone, without chords,
 which `separately_optimized` and `sequentially_optimized` read."""
+
+FIXED_EQUILIBRIUM_OUTPUT = (
+    _MODULE_DIRECTORY / "tables/if_and_ts_placement_scan_fixed_equilibrium.csv"
+)
+"""Where `--fixed-equilibrium` writes the scan linearized on the reference equilibrium
+held fixed, without the surrogate."""
 
 INTERFEROMETER_ONLY_OUTPUT = (
     _MODULE_DIRECTORY / "tables/interferometer_placement_scan.csv"
@@ -219,6 +228,7 @@ def thomson_rows(
     surrogate: model_storage_utils.LoadedSurrogate,
     signal_scale: float,
     noise_model: thomson_scattering_utils.ThomsonNoiseModel,
+    fixed_coefficients: desc_types.DescFourierZernikeCoefficients | None = None,
 ) -> jt.Float[jax.Array, "n_signal n_param"]:
     """Whitened Jacobian of one layout's Thomson channels at `z`, their uncertainties
     evaluated on the signals predicted at `z`; `template` fixes the shapes, so the
@@ -234,6 +244,7 @@ def thomson_rows(
         surrogate: The equilibrium forward model.
         signal_scale: `kappa` in V s per photoelectron.
         noise_model: Uncertainty model of the Thomson channels.
+        fixed_coefficients: Geometry to hold frozen; None predicts it per `z`.
 
     Returns:
         One row per channel of every volume.
@@ -255,7 +266,7 @@ def thomson_rows(
         settings=settings,
         surrogate=surrogate,
         flux_guess=None,
-        fixed_coefficients=None,
+        fixed_coefficients=fixed_coefficients,
     )
     # With zero signals and unit uncertainties the residuals are the predictions.
     predicted = residuals(
@@ -292,6 +303,7 @@ def scan(
     laser_through_axis: bool = False,
     thomson_only: bool = False,
     interferometer_only: bool = False,
+    fixed_equilibrium: bool = False,
 ) -> pd.DataFrame:
     """Every laser and admissible optic pair in each plane, with one chord on the laser
     and the second chord that raises the gain most.
@@ -307,12 +319,14 @@ def scan(
         interferometer_only: Whether to score the chords alone, one through the axis
             in each laser direction and the second from the catalogue, by the gain on
             `ne` without the Thomson system.
+        fixed_equilibrium: Whether to linearize on the reference equilibrium held
+            fixed instead of the surrogate equilibrium of each plasma state.
 
     Returns:
         One row per plane, laser and optic pair, or per plane and axis chord with
         `interferometer_only`: the gains and the layout.
     """
-    context = _scoring_context(paths, truth_names)
+    context = _scoring_context(paths, truth_names, fixed_equilibrium)
     records = []
     for toroidal_angle_deg in toroidal_angles_deg:
         chords, lasers = _catalogues(context, toroidal_angle_deg, laser_through_axis)
@@ -572,9 +586,11 @@ def design_point(row: pd.Series) -> diagnostic_design_point.DiagnosticDesignPoin
 def _scoring_context(
     paths: sweep_utils.SweepPaths,
     truth_names: tuple[str, ...],
+    fixed_equilibrium: bool = False,
 ) -> _ScoringContext:
     """Reference, truth points, prior precisions, interest indices and the compiled
-    Thomson and chord Jacobians, on one posterior with a calibration per volume."""
+    Thomson and chord Jacobians, on one posterior with a calibration per volume; with
+    `fixed_equilibrium`, both Jacobians are taken on the reference equilibrium."""
     parquet_path = paths.data_directory / f"{paths.dataset}.parquet"
     settings_path = paths.data_directory / f"{paths.dataset}_settings.json"
     reference = sweep_utils.reference_truth(parquet_path, settings_path)
@@ -627,6 +643,9 @@ def _scoring_context(
             if site.startswith(("ne_", "te_"))
         ]
     )
+    # The reference equilibrium is also the fixed arm of the self-consistency study, so
+    # the fixed scan and the fixed inference share one geometry.
+    fixed_coefficients = reference.coefficients if fixed_equilibrium else None
     thomson_rows_of = jax.jit(
         functools.partial(
             thomson_rows,
@@ -636,6 +655,7 @@ def _scoring_context(
             surrogate=surrogate,
             signal_scale=placement.thomson_signal_scale,
             noise_model=design.thomson_noise_model,
+            fixed_coefficients=fixed_coefficients,
         )
     )
     chord_rows_of = jax.jit(
@@ -644,6 +664,7 @@ def _scoring_context(
             posterior=posterior,
             settings=settings,
             surrogate=surrogate,
+            fixed_coefficients=fixed_coefficients,
         )
     )
     return _ScoringContext(
@@ -1009,7 +1030,8 @@ def main() -> None:
         "--output",
         type=pathlib.Path,
         default=None,
-        help="defaults to THOMSON_ONLY_OUTPUT, INTERFEROMETER_ONLY_OUTPUT or OUTPUT",
+        help="defaults to THOMSON_ONLY_OUTPUT, INTERFEROMETER_ONLY_OUTPUT, "
+        "FIXED_EQUILIBRIUM_OUTPUT or OUTPUT",
     )
     parser.add_argument(
         "--laser-through-axis",
@@ -1028,12 +1050,19 @@ def main() -> None:
         help="score the chords alone, one through the axis in each laser direction "
         "and a second from the catalogue, by the gain on ne without the Thomson system",
     )
+    parser.add_argument(
+        "--fixed-equilibrium",
+        action="store_true",
+        help="linearize on the reference equilibrium held fixed, without the surrogate",
+    )
     arguments = parser.parse_args()
     output = arguments.output or (
         THOMSON_ONLY_OUTPUT
         if arguments.thomson_only
         else INTERFEROMETER_ONLY_OUTPUT
         if arguments.interferometer_only
+        else FIXED_EQUILIBRIUM_OUTPUT
+        if arguments.fixed_equilibrium
         else OUTPUT
     )
     table = scan(
@@ -1042,6 +1071,7 @@ def main() -> None:
         laser_through_axis=arguments.laser_through_axis,
         thomson_only=arguments.thomson_only,
         interferometer_only=arguments.interferometer_only,
+        fixed_equilibrium=arguments.fixed_equilibrium,
     )
     output.parent.mkdir(parents=True, exist_ok=True)
     table.to_csv(output, index=False)

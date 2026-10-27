@@ -132,7 +132,7 @@ Notebook: `results_plots_tables/results/inverse_mapping/inverse_mapping.ipynb`
 ```
 python $R/mhd_equilibrium_forward_models/test_set_evaluation/run_test_set_evaluation.py \
     --models equilibrium_interpolator 20260908_141134_mlp_data_pca_hand_tuned \
-    20260907_081512_mlp_data_fnorm_only_pca_hand_tuned --n-workers 4
+    20260907_081512_mlp_data_fnorm_only_pca_hand_tuned --n-workers 2
 ```
 
 Notebook: `results_plots_tables/results/mhd_equilibrium_forward_models/test_set_evaluation/results.ipynb`
@@ -160,7 +160,7 @@ python $E/prior_likelihood_posterior/run_study.py --workers 4
 python $E/ts_band_scale/run_study.py --workers 4
 
 # 3.1.4 self_consistency_analysis
-python $E/self_consistency_analysis/run_study.py --workers 4
+python $E/self_consistency_analysis/run_study.py --n-seeds 5 --workers 4
 
 # 3.1.5 ts_uncertainty_level_vs_inference (336 runs, a few hours)
 python $E/ts_uncertainty_level_vs_inference/run_study.py --workers 4
@@ -182,10 +182,11 @@ python $P/run_placement_inference.py --study if_placement_study \
 Notebook: `results_plots_tables/results/diagnostics_placement_optimization/if_placement_study/results.ipynb`
 
 ```
-# 3.2.2 to 3.2.4: all three scans before any inference
+# 3.2.2 to 3.2.4: all four scans before any inference
 python $P/if_and_ts_placement_study/run_scan.py --laser-through-axis                         # 1390 layouts, best 37.43 bit
 python $P/if_and_ts_placement_study/run_scan.py --laser-through-axis --thomson-only          # best 32.44 bit
 python $P/if_and_ts_placement_study/run_scan.py --laser-through-axis --interferometer-only   # 15 rows, best 14.03 bit
+python $P/if_and_ts_placement_study/run_scan.py --laser-through-axis --fixed-equilibrium     # same optimum as the first scan
 python $P/run_placement_inference.py --study if_and_ts_placement_study --workers 4
 python $P/run_placement_inference.py --study if_and_ts_placement_study \
     --layouts initial_guess optimized separately_optimized sequentially_optimized \
@@ -193,13 +194,35 @@ python $P/run_placement_inference.py --study if_and_ts_placement_study \
 python $P/run_placement_inference.py --study if_and_ts_placement_study \
     --layouts initial_guess optimized \
     --truths test_state_1_parametric test_state_2_parametric test_state_3_parametric \
-    test_state_4_parametric test_state_5_gp test_state_6_gp test_state_7_gp test_state_8_gp --workers 4
+    test_state_4_parametric test_state_5_gp test_state_6_gp test_state_7_gp test_state_8_gp \
+    --n-seeds 5 --workers 4
 ```
 
 Notebook: `results_plots_tables/results/diagnostics_placement_optimization/if_and_ts_placement_study/results.ipynb`
 
 One worker needs about 2.5 GB of memory. `--skip-stored` resumes an interrupted study
 without repeating its finished runs (all but `self_consistency_analysis`).
+
+### 5. Optional: the surrogates themselves
+
+The download provides the trained surrogates, so the studies above do not need this
+step. It reproduces the hyperparameter search, which writes the run folder that
+`results_plots_tables/results/mhd_equilibrium_forward_models/hyperparameter_optimization/results.ipynb`
+reads, and the training of the two surrogates.
+
+```
+H=$S/mhd_equilibrium_forward_models/hyperparameter_optimization
+python $H/hyperparameter_optimization_utils.py                 # grid search, five trainings at a time
+python $H/hyperparameter_optimization_utils.py --force-stage   # both stages for the selected nodes
+python $H/pca_component_sweep.py --n-workers 2
+python $S/mhd_equilibrium_forward_models/train_surrogate.py \
+    --model mlp_data_pca_hand_tuned --description "MLP"            # about 6 min
+python $S/mhd_equilibrium_forward_models/train_surrogate.py \
+    --model mlp_data_fnorm_only_pca_hand_tuned --description "PINN"   # about 20.5 h
+```
+
+A retrained surrogate is stored under a new timestamped name; pass it to a study with
+`--model-name` to use it instead of the downloaded one.
 
 ## Tests
 

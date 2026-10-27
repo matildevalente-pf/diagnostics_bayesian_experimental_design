@@ -85,49 +85,6 @@ def precompute_flux_guess(
     return jnp.stack([rho, theta], axis=1)
 
 
-def priors_for(
-    settings: inference_types.PlasmaEstimationSettings,
-    thomson_target: inference_target_types.ThomsonSignalTarget | None = None,
-) -> priors_utils.ProfilePriors:
-    """The priors a run asks for: the family's, plus one calibration site per active
-    Thomson volume of the target.
-
-    Args:
-        settings: The run configuration.
-        thomson_target: The Thomson data, whose active volumes get a calibration
-            correction; None leaves every calibration at its geometric value, as a
-            `thomson_calibration_bound` of one does.
-
-    Returns:
-        One prior per sample site.
-    """
-    infer_calibration = settings.thomson_calibration_bound > 1.0
-    return priors_utils.default_priors(
-        settings.profile_family,
-        calibration_volume_indices=(
-            active_thomson_volumes(thomson_target) if infer_calibration else ()
-        ),
-        calibration_bound=settings.thomson_calibration_bound,
-    )
-
-
-def active_thomson_volumes(
-    thomson_target: inference_target_types.ThomsonSignalTarget | None,
-) -> tuple[int, ...]:
-    """The scattering volumes the likelihood reads, a zero sigma masking the rest.
-
-    Args:
-        thomson_target: The Thomson data, or None for a run without Thomson.
-
-    Returns:
-        The indices of the volumes carrying likelihood weight, in ascending order.
-    """
-    if thomson_target is None:
-        return ()
-    lit = np.any(np.asarray(thomson_target.uncertainties) > 0.0, axis=1)
-    return tuple(int(index) for index in np.flatnonzero(lit))
-
-
 def calibration_corrections(
     point: Mapping[str, jax.typing.ArrayLike],
     thomson_target: inference_target_types.ThomsonSignalTarget | None,

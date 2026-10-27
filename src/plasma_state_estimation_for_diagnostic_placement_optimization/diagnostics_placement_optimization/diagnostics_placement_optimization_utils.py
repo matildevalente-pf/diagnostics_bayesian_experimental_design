@@ -12,10 +12,10 @@ from plasma_state_estimation_for_diagnostic_placement_optimization.array_types i
 )
 from plasma_state_estimation_for_diagnostic_placement_optimization.bayesian_inference import (  # noqa: E501
     desc_truth_types,
-    flat_posterior_utils,
     inference_model_utils,
     inference_target_types,
     inference_types,
+    posterior_utils,
     priors_utils,
 )
 from plasma_state_estimation_for_diagnostic_placement_optimization.diagnostics_forward_models import (  # noqa: E501
@@ -36,12 +36,12 @@ TRUTH_NAMES = tuple(desc_truth_types.DESC_TRUTH_IDS)
 """Ground truths a layout is scored on, the whole catalogue."""
 
 
-def flat_posterior(
+def placement_posterior(
     settings: inference_types.PlasmaEstimationSettings,
     surrogate: model_storage_utils.LoadedSurrogate,
     thomson_target: inference_target_types.ThomsonSignalTarget | None = None,
-) -> tuple[flat_posterior_utils.FlatPosterior, priors_utils.ProfilePriors]:
-    """The flattened model a layout is linearized in, with the priors it is built on.
+) -> tuple[posterior_utils.Posterior, priors_utils.ProfilePriors]:
+    """The posterior a layout is linearized in, with the priors it is built on.
 
     Args:
         settings: The inference configuration.
@@ -52,8 +52,18 @@ def flat_posterior(
     Returns:
         The posterior and its priors.
     """
-    priors = inference_model_utils.priors_for(settings, thomson_target)
-    posterior = flat_posterior_utils.build_flat_posterior(
+    infer_calibration = settings.thomson_calibration_bound > 1.0
+    active_volumes = (
+        np.flatnonzero(np.any(np.asarray(thomson_target.uncertainties) > 0.0, axis=1))
+        if infer_calibration and thomson_target is not None
+        else []
+    )
+    priors = priors_utils.default_priors(
+        settings.profile_family,
+        calibration_volume_indices=tuple(int(index) for index in active_volumes),
+        calibration_bound=settings.thomson_calibration_bound,
+    )
+    posterior = posterior_utils.build_posterior(
         inference_model_utils.bind_plasma_model(
             settings, priors, inference_target_types.InferenceTarget(), surrogate
         ),
@@ -63,13 +73,13 @@ def flat_posterior(
 
 
 def truth_point(
-    truth: desc_truth_types.DescTruth, posterior: flat_posterior_utils.FlatPosterior
+    truth: desc_truth_types.DescTruth, posterior: posterior_utils.Posterior
 ) -> jt.Float[jax.Array, " n_param"]:
     """The truth's two-power fit in the unconstrained coordinates of the inference.
 
     Args:
         truth: The ground truth.
-        posterior: The flattened model whose transforms and site order define `z`.
+        posterior: The posterior whose transforms and site order define `z`.
 
     Returns:
         The point every layout is linearized at for this truth.
@@ -96,12 +106,12 @@ def truth_point(
 
 
 def parameter_indices(
-    posterior: flat_posterior_utils.FlatPosterior, prefixes: tuple[str, ...]
+    posterior: posterior_utils.Posterior, prefixes: tuple[str, ...]
 ) -> jt.Int[np.ndarray, " n_interest"]:
     """Positions in `z` of the sites whose name starts with one of `prefixes`.
 
     Args:
-        posterior: The flattened model whose site order defines `z`.
+        posterior: The posterior whose site order defines `z`.
         prefixes: Site name prefixes, such as `("ne_",)` or `("ne_", "te_")`.
 
     Returns:

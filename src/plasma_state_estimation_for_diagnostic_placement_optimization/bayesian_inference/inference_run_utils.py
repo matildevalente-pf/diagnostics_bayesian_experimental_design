@@ -16,7 +16,6 @@ from plasma_state_estimation_for_diagnostic_placement_optimization.array_types i
 )
 from plasma_state_estimation_for_diagnostic_placement_optimization.bayesian_inference import (  # noqa: E501
     desc_truth_types,
-    flat_posterior_utils,
     inference_model_utils,
     inference_target_types,
     inference_types,
@@ -24,6 +23,7 @@ from plasma_state_estimation_for_diagnostic_placement_optimization.bayesian_infe
     likelihood_utils,
     map_optimization_utils,
     mcmc_utils,
+    posterior_utils,
     priors_utils,
     profile_parametrization_types,
 )
@@ -413,7 +413,7 @@ def profile_samples_in_si(
 def band_from_unconstrained_draws(
     settings: inference_types.PlasmaEstimationSettings,
     priors: priors_utils.ProfilePriors,
-    posterior: flat_posterior_utils.FlatPosterior,
+    posterior: posterior_utils.Posterior,
     draws: jt.Float[NpOrJaxArray, "n_sample n_param"],
     rho: jt.Float[jax.Array, " n_rho"],
 ) -> tuple[inference_types.PlasmaProfilePosterior, np.ndarray, np.ndarray]:
@@ -425,7 +425,7 @@ def band_from_unconstrained_draws(
     Args:
         settings: The run configuration, supplying the family and its grid.
         priors: Priors on both profiles, which name the sites.
-        posterior: The flattened model whose transforms map the draws back.
+        posterior: The posterior whose transforms map the draws back.
         draws: Unconstrained draws, one row each, in `posterior.site_names` order.
         rho: Radial grid the band is evaluated on.
 
@@ -544,7 +544,7 @@ def _select_starts(
 def _start_bands(
     settings: inference_types.PlasmaEstimationSettings,
     priors: priors_utils.ProfilePriors,
-    posterior: flat_posterior_utils.FlatPosterior,
+    posterior: posterior_utils.Posterior,
     approximations: list[laplace_approximation_utils.LaplaceApproximation],
     candidates: jt.Bool[np.ndarray, " n_start"],
     rho: jt.Float[jax.Array, " n_rho"],
@@ -579,7 +579,7 @@ def _start_bands(
 def _laplace_band(
     settings: inference_types.PlasmaEstimationSettings,
     priors: priors_utils.ProfilePriors,
-    posterior: flat_posterior_utils.FlatPosterior,
+    posterior: posterior_utils.Posterior,
     approximation: laplace_approximation_utils.LaplaceApproximation,
     information_gain: float,
     rho: jt.Float[jax.Array, " n_rho"],
@@ -628,7 +628,7 @@ def _mcmc_band(
     The band comes off the same `band_from_unconstrained_draws` the two Gaussian
     recipes use, so the three differ in where their draws came from and nowhere else.
     """
-    posterior = flat_posterior_utils.build_flat_posterior(
+    posterior = posterior_utils.build_posterior(
         inference_model_utils.bind_plasma_model(
             settings, priors, target, surrogate, fixed_coefficients
         ),
@@ -641,7 +641,7 @@ def _mcmc_band(
         surrogate,
         map_result.point,
         posterior,
-        # Both flat posteriors are flattened from the same model's sites, so they share
+        # Both posteriors are built from the same model's sites, so they share
         # one coordinate order and the Laplace covariance needs no reordering.
         laplace.covariance,
         fixed_coefficients,
@@ -682,7 +682,7 @@ def _mcmc_band(
 
 
 def _constrained_samples(
-    posterior: flat_posterior_utils.FlatPosterior,
+    posterior: posterior_utils.Posterior,
     draws: jt.Float[jax.Array, "n_sample dim"],
     priors: priors_utils.ProfilePriors,
 ) -> tuple[np.ndarray, np.ndarray]:

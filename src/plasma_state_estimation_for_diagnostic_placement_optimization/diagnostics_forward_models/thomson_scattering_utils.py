@@ -127,9 +127,9 @@ ELECTRONIC_NOISE_B: float = 4.31e10
 ELECTRONIC_NOISE_C: float = 0.1
 """`c` of that noise curve, the relative uncertainty no amount of collected light beats.
 
-Fig. 6 of Raak 2024 reads about 0.087. The 0.1 is this work's choice, raised to cover
-part of the plasma background light, which section 3.2 of Raak 2024 treats instead as a
-shift of the curve toward larger signals. Discussed with Golo Fuchert, 2026-09-25.
+Approximate value read off Fig. 6 of Raak 2024, like `a` and `b`. The shift of the curve
+toward larger signals by the plasma background light, section 3.2 of Raak 2024, is not
+modelled.
 """
 
 DETECTION_SNR: float = 2.0

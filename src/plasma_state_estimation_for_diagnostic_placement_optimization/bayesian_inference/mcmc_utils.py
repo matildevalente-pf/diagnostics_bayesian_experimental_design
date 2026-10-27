@@ -14,11 +14,11 @@ from plasma_state_estimation_for_diagnostic_placement_optimization.array_types i
     NpOrJaxArray,
 )
 from plasma_state_estimation_for_diagnostic_placement_optimization.bayesian_inference import (  # noqa: E501
-    flat_posterior_utils,
     inference_model_utils,
     inference_target_types,
     inference_types,
     mcmc_convergence_utils,
+    posterior_utils,
     priors_utils,
 )
 from plasma_state_estimation_for_diagnostic_placement_optimization.ideal_mhd import (
@@ -80,7 +80,7 @@ def run_mcmc(
     target: inference_target_types.InferenceTarget,
     surrogate: model_storage_utils.LoadedSurrogate,
     initial_point: Mapping[str, jt.Float[NpOrJaxArray, ""]],
-    posterior: flat_posterior_utils.FlatPosterior,
+    posterior: posterior_utils.Posterior,
     laplace_covariance: jt.Float[NpOrJaxArray, "n_param n_param"],
     fixed_coefficients: desc_types.DescFourierZernikeCoefficients | None = None,
 ) -> McmcResult:
@@ -95,7 +95,7 @@ def run_mcmc(
         target: The observed data.
         surrogate: The equilibrium forward model.
         initial_point: The MAP point, which the chain start points are drawn around.
-        posterior: The flattened posterior, fixing the coordinate order of the draws.
+        posterior: The posterior, fixing the coordinate order of the draws.
         laplace_covariance: The Laplace covariance at the MAP in `z`, in the order of
             `posterior.site_names`, which the `laplace` starts are drawn from.
         fixed_coefficients: Geometry to hold frozen; None solves for it.
@@ -152,7 +152,7 @@ def run_mcmc(
     extra_fields = mcmc.get_extra_fields(group_by_chain=True)
     return McmcResult(
         unconstrained_samples=np.asarray(
-            flat_posterior_utils.unconstrain_samples(posterior, mcmc.get_samples())
+            posterior_utils.unconstrain_samples(posterior, mcmc.get_samples())
         ),
         chain_samples=np.stack(
             [np.asarray(by_chain[name]) for name in posterior.site_names], axis=-1
@@ -174,7 +174,7 @@ def run_mcmc(
 def chain_initial_points(
     settings: inference_types.PlasmaEstimationSettings,
     initial_point: Mapping[str, jt.Float[NpOrJaxArray, ""]],
-    posterior: flat_posterior_utils.FlatPosterior,
+    posterior: posterior_utils.Posterior,
     laplace_covariance: jt.Float[NpOrJaxArray, "n_param n_param"],
     key: jax.Array,
 ) -> dict[str, jt.Float[jax.Array, " n_chain"]]:
@@ -186,7 +186,7 @@ def chain_initial_points(
     Args:
         settings: The run configuration, supplying the chain count and the spread.
         initial_point: The MAP point, per site, in the constrained space.
-        posterior: The flattened posterior, whose transforms carry the point into `z`.
+        posterior: The posterior, whose transforms carry the point into `z`.
         laplace_covariance: The Laplace covariance at the MAP, in the order of
             `posterior.site_names`; read by `laplace` alone.
         key: PRNG key of the perturbation, so the start points are reproducible.

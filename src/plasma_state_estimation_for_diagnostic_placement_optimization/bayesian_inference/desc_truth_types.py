@@ -51,33 +51,20 @@ TEST_STATE_IDS: dict[str, str] = {
     "test_state_7_gp": "Dg4H3DzsCMCyLpN5guhQJ7W",
     "test_state_8_gp": "DVgKXgdTcQrZoV8XEe2Bc6c",
 }
-"""Test-split states no layout was optimized on, to check that an optimized layout
-also serves them: four of each sampling family, drawn with
-`numpy.random.default_rng(0)` from the 82 test rows outside `DESC_TRUTH_IDS` inside the
-windows that catalogue was chosen from (peak `ne` 1e20 to 9e20 m^-3, peak `Te` 1 to
-10 keV, beta 1.5 to 4 %, non-negative pressure) whose two-power fit lies inside the
-prior, 10 of them parametric; the suffix is the family, as in `DESC_TRUTH_IDS`."""
+"""Equilibria from the surrogate test set used to run the Bayesian inference of
+Sec. 3.2.4 of the thesis, on which no layout was optimized."""
 
 
 REFERENCE_EQUILIBRIUM_ID = "DdgGq5HxCvF9qgAM7HDLCKZ"
-"""The equilibrium a reconstruction may assume before the profiles are known.
-
-The median of the **training** split by `beta_volume_averaged` among the rows whose
-pressure is non-negative everywhere (2.06%, against the truths' 1.52% to 3.61%), so it
-is plausible and wrong for every truth in both directions. The self-consistency study's
-fixed arm assumes it, and the Thomson band-scale rule reads its expected temperature.
-"""
+"""Reference equilibrium used to optimize the polychromator bands in Sec. 2.2.2 of
+the thesis."""
 
 _MINIMUM_PRESSURE_PA = 1.0
 """Floor applied before taking logs: dataset pressure profiles can graze zero."""
 
 
 class DescTruth(pydantic.BaseModel):
-    """One ground-truth state: a DESC solve's geometry plus the `ne`/`Te` split from it.
-
-    A solve constrains only the total pressure, so the split is a modelling assumption;
-    see `profiles_from_pressure_spline`. `DESC_TRUTH_IDS[name]` recovers the source id.
-    """
+    """Holds the properties of each equilibrium."""
 
     model_config = pydantic.ConfigDict(arbitrary_types_allowed=True)
 

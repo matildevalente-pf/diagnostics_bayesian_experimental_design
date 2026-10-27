@@ -32,10 +32,10 @@ sys.path.insert(0, str(_PACKAGE_DIRECTORY.parent))
 
 from plasma_state_estimation_for_diagnostic_placement_optimization.bayesian_inference import (  # noqa: E402,E501
     desc_truth_types,
-    flat_posterior_utils,
     inference_target_types,
     inference_types,
     laplace_approximation_utils,
+    posterior_utils,
 )
 from plasma_state_estimation_for_diagnostic_placement_optimization.diagnostics_forward_models import (  # noqa: E402,E501
     diagnostic_design_point,
@@ -214,7 +214,7 @@ def thomson_rows(
     z: jt.Float[jax.Array, " n_param"],
     layout: dict[str, jt.Shaped[jax.Array, "..."]],
     template: inference_target_types.ThomsonSignalTarget,
-    posterior: flat_posterior_utils.FlatPosterior,
+    posterior: posterior_utils.Posterior,
     settings: inference_types.PlasmaEstimationSettings,
     surrogate: model_storage_utils.LoadedSurrogate,
     signal_scale: float,
@@ -229,7 +229,7 @@ def thomson_rows(
         layout: The `LAYOUT_FIELDS` of the layout's geometry, its band scales and its
             nominal calibration.
         template: A Thomson target with the scan's volume and channel counts.
-        posterior: The flattened model whose transforms define `z`.
+        posterior: The posterior whose transforms define `z`.
         settings: The inference configuration, for the forward resolutions.
         surrogate: The equilibrium forward model.
         signal_scale: `kappa` in V s per photoelectron.
@@ -604,7 +604,7 @@ def _scoring_context(
         uncertainties=jnp.ones(shape),
         global_calibration=thomson_scattering_utils.absolute_calibration(geometry),
     )
-    posterior, priors = diagnostics_placement_optimization_utils.flat_posterior(
+    posterior, priors = diagnostics_placement_optimization_utils.placement_posterior(
         settings, surrogate, template
     )
     points = [

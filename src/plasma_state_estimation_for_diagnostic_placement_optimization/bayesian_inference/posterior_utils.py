@@ -1,6 +1,3 @@
-# The bound NumPyro model as a flat function of one unconstrained vector, which is what
-# the MAP, the Laplace fit and the sampler want instead of NumPyro's site dict.
-
 import functools
 from collections.abc import Callable, Mapping
 from typing import NamedTuple
@@ -17,8 +14,8 @@ from plasma_state_estimation_for_diagnostic_placement_optimization.array_types i
 )
 
 
-class FlatPosterior(NamedTuple):
-    """A bound NumPyro model reduced to functions of one flat unconstrained vector.
+class Posterior(NamedTuple):
+    """A bound NumPyro model written as functions of one unconstrained vector `z`.
 
     Unconstrained because a bounded site is unbounded in `z`, where an optimizer needs
     no constraint, a Gaussian fits, and the support is automatic on return.
@@ -29,30 +26,30 @@ class FlatPosterior(NamedTuple):
     minimizes and the Laplace approximation expands."""
 
     constrain: Callable[[jt.Float[NpOrJaxArray, " n_param"]], dict]
-    """Flat unconstrained vector to the physical per-site values.
+    """Maps `z` back to the physical value of each parameter.
 
-    Applies the per-site bijections only, rather than re-running the whole model as
-    NumPyro's `constrain_fn` would, so it does not cost a flux solve per call.
+    Applies the stored transform of each parameter, e.g. the sigmoid that maps the real
+    line onto the bounds of a uniform prior, without evaluating the forward models.
     """
 
     z_init: jt.Float[jax.Array, " n_param"]
     """The start point, i.e. the caller's initial values pushed into `z`."""
 
     site_names: tuple[str, ...]
-    """Site names in the flat vector's own coordinate order, which `ravel_pytree` sorts
-    by key and not by site index, so `ne_10` comes before `ne_2`. Measured with one-hot
-    probes, not assumed, since confusing the two permutes every per-site array."""
+    """Parameter names in the order of the entries of `z`, which is alphabetical:
+    `calibration_0, calibration_1, calibration_10, ..., calibration_9, ne_0, ne_1, ne_2,
+    te_0, te_1, te_2`."""
 
     transforms: dict[str, numpyro.distributions.transforms.Transform]
-    """The per-site bijections, kept so a batch of draws can be moved between the two
-    spaces without re-running the model, which would cost one flux solve per draw."""
+    """The transform of each parameter, kept so that a batch of draws can be mapped
+    between `z` and the physical values without evaluating the forward models."""
 
 
-def build_flat_posterior(
+def build_posterior(
     model: Callable[[], None],
     initial_values: Mapping[str, jt.Float[NpOrJaxArray, ""]],
-) -> FlatPosterior:
-    """Flatten a bound NumPyro model into functions of one unconstrained vector.
+) -> Posterior:
+    """Write a bound NumPyro model as functions of one unconstrained vector `z`.
 
     Args:
         model: A no-argument model, i.e. `inference_model_utils.plasma_model`
@@ -68,26 +65,26 @@ def build_flat_posterior(
     )
     z_init, unravel = jax.flatten_util.ravel_pytree(initial_unconstrained)
     transforms = numpyro.infer.util.get_transforms(model, (), {}, initial_unconstrained)
-    return FlatPosterior(
+    return Posterior(
         potential=functools.partial(_potential, model=model, unravel=unravel),
         constrain=functools.partial(_constrain, transforms=transforms, unravel=unravel),
         z_init=z_init,
-        site_names=_flat_site_names(initial_unconstrained),
+        site_names=_site_names(initial_unconstrained),
         transforms=transforms,
     )
 
 
 def unconstrain_samples(
-    posterior: FlatPosterior,
+    posterior: Posterior,
     samples: Mapping[str, jt.Float[NpOrJaxArray, " n_sample"]],
 ) -> jt.Float[jax.Array, "n_sample n_param"]:
-    """Push a batch of constrained per-site draws into flat unconstrained vectors.
+    """Map a batch of physical parameter draws to unconstrained vectors `z`.
 
-    Applies the stored inverse bijections, pure elementwise maths, so a whole batch
-    converts at no model cost; `unconstrain_fn` per draw would re-run the model.
+    Applies the inverse of each stored transform elementwise, so the forward models are
+    not evaluated.
 
     Args:
-        posterior: The flattened posterior whose transforms and order are used.
+        posterior: The posterior whose transforms and order are used.
         samples: Per-site draws, each of shape `(n_sample,)`.
 
     Returns:
@@ -102,19 +99,19 @@ def unconstrain_samples(
     )
 
 
-def _flat_site_names(
+def _site_names(
     unconstrained: Mapping[str, jt.Float[NpOrJaxArray, ""]],
 ) -> tuple[str, ...]:
-    """Which site each slot of the flat vector holds, measured rather than assumed.
+    """Which parameter each entry of `z` holds.
 
-    One one-hot probe per site is raveled and its nonzero slot read off, so the answer
-    cannot drift if JAX changes how it orders dictionary keys.
+    One one-hot probe per parameter is flattened and its nonzero entry read off, so the
+    answer cannot drift if JAX changes how it orders dictionary keys.
 
     Args:
         unconstrained: Per-site unconstrained values, all scalars.
 
     Returns:
-        The site names, in the flat vector's coordinate order.
+        The parameter names, in the order of the entries of `z`.
     """
     names: list[str | None] = [None] * len(unconstrained)
     for name in unconstrained:
@@ -123,7 +120,7 @@ def _flat_site_names(
         names[int(np.argmax(np.asarray(flat)))] = name
     if any(name is None for name in names):
         raise ValueError(
-            "could not determine the flat coordinate order; every site must be a "
+            "could not determine the coordinate order of z; every site must be a "
             "scalar, and two sites cannot share a slot."
         )
     return tuple(name for name in names if name is not None)
@@ -147,5 +144,5 @@ def _constrain(
     transforms: dict[str, numpyro.distributions.transforms.Transform],
     unravel: Callable[[jt.Float[jax.Array, " n_param"]], dict],
 ) -> dict:
-    """Apply the per-site bijections, returning the physical values."""
+    """Apply the transform of each parameter, returning the physical values."""
     return numpyro.infer.util.transform_fn(transforms, unravel(jnp.asarray(z)))

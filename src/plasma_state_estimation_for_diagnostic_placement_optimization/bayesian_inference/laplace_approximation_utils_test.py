@@ -16,12 +16,12 @@ import numpy as np
 import pytest
 from plasma_state_estimation_for_diagnostic_placement_optimization.bayesian_inference import (  # noqa: E501
     desc_truth_types,
-    flat_posterior_utils,
     inference_model_utils,
     inference_target_types,
     inference_types,
     laplace_approximation_utils,
     map_optimization_utils,
+    posterior_utils,
     priors_utils,
 )
 from plasma_state_estimation_for_diagnostic_placement_optimization.diagnostics_forward_models import (  # noqa: E501
@@ -53,7 +53,7 @@ class _Fit(NamedTuple):
     priors: priors_utils.ProfilePriors
     target: inference_target_types.InferenceTarget
     surrogate: model_storage_utils.LoadedSurrogate
-    posterior: flat_posterior_utils.FlatPosterior
+    posterior: posterior_utils.Posterior
     approximation: laplace_approximation_utils.LaplaceApproximation
 
 
@@ -90,7 +90,18 @@ def fit() -> _Fit:
         add_noise=settings.add_measurement_noise,
         interferometer_sigma=settings.interferometer_sigma,
     )
-    priors = inference_model_utils.priors_for(settings, target.thomson_signals)
+    thomson_target = target.thomson_signals
+    infer_calibration = settings.thomson_calibration_bound > 1.0
+    active_volumes = (
+        np.flatnonzero(np.any(np.asarray(thomson_target.uncertainties) > 0.0, axis=1))
+        if infer_calibration and thomson_target is not None
+        else []
+    )
+    priors = priors_utils.default_priors(
+        settings.profile_family,
+        calibration_volume_indices=tuple(int(index) for index in active_volumes),
+        calibration_bound=settings.thomson_calibration_bound,
+    )
     posterior = next(
         map_optimization_utils.run_map(
             settings,

@@ -25,10 +25,10 @@ sys.path.insert(0, str(_PACKAGE_DIRECTORY.parent))
 
 from plasma_state_estimation_for_diagnostic_placement_optimization.bayesian_inference import (  # noqa: E402,E501
     desc_truth_types,
-    flat_posterior_utils,
     inference_target_types,
     inference_types,
     laplace_approximation_utils,
+    posterior_utils,
 )
 from plasma_state_estimation_for_diagnostic_placement_optimization.diagnostics_forward_models import (  # noqa: E402,E501
     diagnostic_design_point,
@@ -72,7 +72,7 @@ def chord_rows(
     z: jt.Float[jax.Array, " n_param"],
     starts: jt.Float[jax.Array, "n_chord 3"],
     ends: jt.Float[jax.Array, "n_chord 3"],
-    posterior: flat_posterior_utils.FlatPosterior,
+    posterior: posterior_utils.Posterior,
     settings: inference_types.PlasmaEstimationSettings,
     surrogate: model_storage_utils.LoadedSurrogate,
 ) -> jt.Float[jax.Array, "n_chord n_param"]:
@@ -83,7 +83,7 @@ def chord_rows(
         z: Unconstrained parameters the model is linearized at.
         starts: Start of each chord's in-plasma segment, lab frame, in m.
         ends: End of each chord's in-plasma segment, lab frame, in m.
-        posterior: The flattened model whose transforms define `z`.
+        posterior: The posterior whose transforms define `z`.
         settings: The inference configuration, for the forward resolutions and the
             chord uncertainty.
         surrogate: The equilibrium forward model.
@@ -273,7 +273,7 @@ def _scoring_context(
         machine_scale=reference.machine_scale,
     )
     settings = inference_types.PlasmaEstimationSettings()
-    posterior, priors = diagnostics_placement_optimization_utils.flat_posterior(
+    posterior, priors = diagnostics_placement_optimization_utils.placement_posterior(
         settings, surrogate
     )
     points = [

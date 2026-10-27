@@ -120,7 +120,7 @@ def site_names(names: Iterable[str], prefix: str) -> list[str]:
     """One profile's site names, in index order rather than in dictionary order.
 
     `sorted` on the names themselves would put `ne_10` before `ne_2`, the same trap
-    `flat_posterior_utils.site_names` measures rather than assumes.
+    `posterior_utils.site_names` measures rather than assumes.
 
     Args:
         names: The priors, a point, or anything else keyed by site name.

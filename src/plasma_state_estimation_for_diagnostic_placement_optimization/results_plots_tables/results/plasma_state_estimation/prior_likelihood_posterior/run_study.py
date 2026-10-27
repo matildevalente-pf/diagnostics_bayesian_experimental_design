@@ -44,7 +44,6 @@ import numpy as np  # noqa: E402
 import pandas as pd  # noqa: E402
 from plasma_state_estimation_for_diagnostic_placement_optimization.bayesian_inference import (  # noqa: E402,E501
     desc_truth_types,
-    inference_model_utils,
     inference_run_utils,
     inference_types,
     priors_utils,
@@ -383,7 +382,9 @@ def prior_profile_curves(
     Returns:
         The density and the temperature sample curves, in m^-3 and eV.
     """
-    priors = inference_model_utils.priors_for(settings)
+    priors = priors_utils.default_priors(
+        settings.profile_family, calibration_bound=settings.thomson_calibration_bound
+    )
     names = sorted(priors)
     keys = jax.random.split(jax.random.PRNGKey(seed), len(names))
     columns = {

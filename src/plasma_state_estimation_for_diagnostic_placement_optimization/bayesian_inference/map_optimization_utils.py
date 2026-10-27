@@ -11,10 +11,10 @@ import jax.numpy as jnp
 import jaxtyping as jt
 import optax
 from plasma_state_estimation_for_diagnostic_placement_optimization.bayesian_inference import (  # noqa: E501
-    flat_posterior_utils,
     inference_model_utils,
     inference_target_types,
     inference_types,
+    posterior_utils,
     priors_utils,
 )
 from plasma_state_estimation_for_diagnostic_placement_optimization.ideal_mhd import (
@@ -42,8 +42,8 @@ converged end on a surrogate with kinks), or `MapSettings.max_iterations`."""
 class MapResult(NamedTuple):
     """What one MAP optimization produced."""
 
-    posterior: flat_posterior_utils.FlatPosterior
-    """The flattened model the MAP was found on, with `z_init` at the MAP."""
+    posterior: posterior_utils.Posterior
+    """The posterior the MAP was found on, with `z_init` at the MAP."""
 
     start_point: dict[str, jt.Float[jax.Array, ""]]
     """Where the optimization started, per site, in the constrained physical space."""
@@ -102,7 +102,7 @@ def run_map(
         One result per start, in start order: its MAP point, its trajectory, what
         ended it and how stationary the point is.
     """
-    posterior = flat_posterior_utils.build_flat_posterior(
+    posterior = posterior_utils.build_posterior(
         inference_model_utils.bind_plasma_model(
             settings, priors, target, surrogate, fixed_coefficients
         ),
@@ -133,7 +133,7 @@ def run_map(
     constrain = jax.jit(posterior.constrain)
     potential = jax.jit(posterior.potential)
     gradient = jax.jit(jax.grad(posterior.potential))
-    initial_points = flat_posterior_utils.unconstrain_samples(
+    initial_points = posterior_utils.unconstrain_samples(
         posterior,
         {
             name: jnp.stack([start[name] for start in starts])

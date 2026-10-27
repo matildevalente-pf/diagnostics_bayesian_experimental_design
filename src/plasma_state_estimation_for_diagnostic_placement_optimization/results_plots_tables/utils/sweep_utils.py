@@ -21,11 +21,12 @@ import pathlib
 import time
 from typing import NamedTuple
 
+import numpy as np
 from plasma_state_estimation_for_diagnostic_placement_optimization.bayesian_inference import (  # noqa: E501
     desc_truth_types,
-    inference_model_utils,
     inference_run_utils,
     inference_types,
+    priors_utils,
 )
 from plasma_state_estimation_for_diagnostic_placement_optimization.diagnostics_forward_models import (  # noqa: E501
     diagnostic_design_point,
@@ -308,9 +309,20 @@ def run_cell(cell: SweepCell, paths: SweepPaths, workers: int) -> dict:
         if cell.fixed_equilibrium_id is not None
         else None
     )
-    # After the masking, so a volume the likelihood does not read gets no calibration
-    # correction of its own.
-    priors = inference_model_utils.priors_for(settings, target.thomson_signals)
+    # After the masking, so a volume the likelihood does not read, whose sigma is zero,
+    # gets no calibration correction of its own.
+    thomson_target = target.thomson_signals
+    infer_calibration = settings.thomson_calibration_bound > 1.0
+    active_volumes = (
+        np.flatnonzero(np.any(np.asarray(thomson_target.uncertainties) > 0.0, axis=1))
+        if infer_calibration and thomson_target is not None
+        else []
+    )
+    priors = priors_utils.default_priors(
+        settings.profile_family,
+        calibration_volume_indices=tuple(int(index) for index in active_volumes),
+        calibration_bound=settings.thomson_calibration_bound,
+    )
     result, arrays = inference_run_utils.run_inference(
         settings,
         priors,

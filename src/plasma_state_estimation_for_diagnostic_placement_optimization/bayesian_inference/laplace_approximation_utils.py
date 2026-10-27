@@ -14,11 +14,11 @@ from plasma_state_estimation_for_diagnostic_placement_optimization.array_types i
     NpOrJaxArray,
 )
 from plasma_state_estimation_for_diagnostic_placement_optimization.bayesian_inference import (  # noqa: E501
-    flat_posterior_utils,
     inference_model_utils,
     inference_target_types,
     inference_types,
     likelihood_utils,
+    posterior_utils,
     priors_utils,
 )
 from plasma_state_estimation_for_diagnostic_placement_optimization.ideal_mhd import (
@@ -70,7 +70,7 @@ class LaplaceApproximation(NamedTuple):
 
 
 def fit_laplace(
-    posterior: flat_posterior_utils.FlatPosterior,
+    posterior: posterior_utils.Posterior,
     settings: inference_types.PlasmaEstimationSettings,
     priors: priors_utils.ProfilePriors,
     target: inference_target_types.InferenceTarget,
@@ -82,7 +82,7 @@ def fit_laplace(
     approximation otherwise, blind to multimodality and skew.
 
     Args:
-        posterior: The flattened model with `z_init` at the mode, as
+        posterior: The posterior with `z_init` at the mode, as
             `map_optimization_utils.run_map` returns it.
         settings: The run configuration, supplying the forward resolutions.
         priors: Priors on both profiles.
@@ -190,14 +190,14 @@ def information_gain_bits(
 
 def negative_log_prior(
     z: jt.Float[NpOrJaxArray, " n_param"],
-    posterior: flat_posterior_utils.FlatPosterior,
+    posterior: posterior_utils.Posterior,
     priors: priors_utils.ProfilePriors,
 ) -> jt.Float[jax.Array, ""]:
     """`-log p(z)` of the prior in the unconstrained space, log-Jacobians included.
 
     Args:
         z: Flat unconstrained parameter vector.
-        posterior: The flattened model whose transforms define `z`.
+        posterior: The posterior whose transforms define `z`.
         priors: Priors on both profiles.
 
     Returns:
@@ -214,14 +214,14 @@ def negative_log_prior(
 
 def prior_precision(
     z: jt.Float[NpOrJaxArray, " n_param"],
-    posterior: flat_posterior_utils.FlatPosterior,
+    posterior: posterior_utils.Posterior,
     priors: priors_utils.ProfilePriors,
 ) -> jt.Float[jax.Array, "n_param n_param"]:
     """Hessian of `negative_log_prior` at `z`; constant for Gaussian priors.
 
     Args:
         z: Flat unconstrained parameter vector.
-        posterior: The flattened model whose transforms define `z`.
+        posterior: The posterior whose transforms define `z`.
         priors: Priors on both profiles.
 
     Returns:
@@ -234,7 +234,7 @@ def prior_precision(
 
 def residuals_of_z(
     z: jt.Float[NpOrJaxArray, " n_param"],
-    posterior: flat_posterior_utils.FlatPosterior,
+    posterior: posterior_utils.Posterior,
     settings: inference_types.PlasmaEstimationSettings,
     target: inference_target_types.InferenceTarget,
     surrogate: model_storage_utils.LoadedSurrogate,
@@ -249,7 +249,7 @@ def residuals_of_z(
 
     Args:
         z: Flat unconstrained parameter vector.
-        posterior: The flattened model whose transforms define `z`.
+        posterior: The posterior whose transforms define `z`.
         settings: The run configuration, supplying the forward resolutions.
         target: The observed data.
         surrogate: The equilibrium forward model.
@@ -278,7 +278,7 @@ def residuals_of_z(
 
 def _curvature(
     z: jt.Float[jax.Array, " n_param"],
-    posterior: flat_posterior_utils.FlatPosterior,
+    posterior: posterior_utils.Posterior,
     priors: priors_utils.ProfilePriors,
     residuals: Callable[
         [jt.Float[jax.Array, " n_param"]], jt.Float[jax.Array, " n_residual"]

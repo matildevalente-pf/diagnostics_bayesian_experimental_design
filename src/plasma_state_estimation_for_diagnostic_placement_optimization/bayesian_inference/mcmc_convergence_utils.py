@@ -1,7 +1,6 @@
 # Convergence diagnostics of a finished NUTS run, rank-normalized as Vehtari et al.
 # 2021 (https://doi.org/10.1214/20-BA1221) defines them, and the PASS or FAIL they give.
 
-import typing
 from collections.abc import Mapping
 from typing import NamedTuple
 
@@ -132,31 +131,86 @@ def sampler_diagnostics(
         The per-site and per-run diagnostics, with the PASS or FAIL in `converged`.
     """
     site_names = tuple(samples_by_chain)
-    draws = {name: np.asarray(samples_by_chain[name]) for name in site_names}
-    r_hat = np.array(
-        [rank_normalized_split_r_hat(draws[name]) for name in site_names], dtype=float
+    r_hat, ess_bulk, ess_tail = [], [], []
+    for name in site_names:
+        draws = np.asarray(samples_by_chain[name])
+        half = draws.shape[1] // 2
+        # Rank normalization of the draws and of their distance from the median, with
+        # the offsets 3/8 and 1/4 of the Blom transform (Vehtari et al. 2021, eq. 14).
+        # The folded draws catch chains that agree on the location but not the spread.
+        normalized = [
+            scipy.stats.norm.ppf(
+                (
+                    scipy.stats.rankdata(values, method="average").reshape(values.shape)
+                    - 3.0 / 8.0
+                )
+                / (values.size - 1.0 / 4.0)
+            )
+            for values in (draws, np.abs(draws - np.median(draws)))
+        ]
+        r_hat.append(
+            max(numpyro.diagnostics.split_gelman_rubin(values) for values in normalized)
+            if draws.shape[0] >= 2
+            else float("nan")
+        )
+        # Every chain is split into its two halves, so a chain drifting within itself
+        # is seen.
+        ess_bulk.append(
+            numpyro.diagnostics.effective_sample_size(
+                np.concatenate([normalized[0][:, :half], normalized[0][:, -half:]])
+            )
+        )
+        # Each band edge is estimated from the indicator `draws <= quantile`, whose
+        # effective sample size says how well that edge is resolved; nan when an
+        # indicator is constant and carries no information.
+        indicators = [
+            (draws <= np.quantile(draws, quantile)).astype(float)
+            for quantile in TAIL_QUANTILES
+        ]
+        ess_tail.append(
+            float("nan")
+            if any(np.all(indicator == indicator.flat[0]) for indicator in indicators)
+            else min(
+                numpyro.diagnostics.effective_sample_size(
+                    np.concatenate([indicator[:, :half], indicator[:, -half:]])
+                )
+                for indicator in indicators
+            )
+        )
+    r_hat, ess_bulk, ess_tail = (
+        np.array(values, dtype=float) for values in (r_hat, ess_bulk, ess_tail)
     )
-    ess_bulk = np.array(
-        [bulk_effective_sample_size(draws[name]) for name in site_names], dtype=float
+    # The worst site decides; nan when no site has a finite value, the single-chain
+    # case of `r_hat`, where `np.nanmax` would warn.
+    r_hat_max = float(np.nanmax(r_hat)) if np.any(np.isfinite(r_hat)) else float("nan")
+    ess_bulk_min = (
+        float(np.nanmin(ess_bulk)) if np.any(np.isfinite(ess_bulk)) else float("nan")
     )
-    ess_tail = np.array(
-        [tail_effective_sample_size(draws[name]) for name in site_names], dtype=float
+    ess_tail_min = (
+        float(np.nanmin(ess_tail)) if np.any(np.isfinite(ess_tail)) else float("nan")
     )
     num_steps = np.asarray(extra_fields["num_steps"])
     # A trajectory that never turns back doubles `max_tree_depth` times and therefore
     # takes `2^depth - 1` leapfrog steps, which is how a saturating iteration is read
     # off the step count numpyro records.
     saturating = num_steps >= 2**max_tree_depth - 1
+    n_divergences = int(np.asarray(extra_fields["diverging"]).sum())
+    # Energy Bayesian fraction of missing information per chain,
+    # `mean((E_n - E_{n-1})^2) / var(E)`, nan for a chain of constant energy.
     energy = np.asarray(extra_fields["energy"])
+    energy_variance = np.var(energy, axis=1)
+    ebfmi = np.where(
+        energy_variance > 0.0,
+        np.mean(np.square(np.diff(energy, axis=1)), axis=1)
+        / np.where(energy_variance > 0.0, energy_variance, 1.0),
+        np.nan,
+    )
     n_chains, n_draws = num_steps.shape
-    r_hat_max = _worst(r_hat, np.nanmax)
-    ess_bulk_min = _worst(ess_bulk, np.nanmin)
-    ess_tail_min = _worst(ess_tail, np.nanmin)
     converged = bool(
         r_hat_max < R_HAT_LIMIT
         and ess_bulk_min > ESS_BULK_LIMIT
         and ess_tail_min > ESS_TAIL_LIMIT
-        and int(np.asarray(extra_fields["diverging"]).sum()) == 0
+        and n_divergences == 0
         and saturating.mean() <= MAX_TREE_DEPTH_FRACTION_LIMIT
     )
     return SamplerDiagnostics(
@@ -167,139 +221,16 @@ def sampler_diagnostics(
         r_hat_max=r_hat_max,
         ess_bulk_min=ess_bulk_min,
         ess_tail_min=ess_tail_min,
-        n_divergences=int(np.asarray(extra_fields["diverging"]).sum()),
+        n_divergences=n_divergences,
         n_max_tree_depth=int(saturating.sum()),
         max_tree_depth_fraction=float(saturating.mean()),
         accept_prob_mean=float(np.mean(np.asarray(extra_fields["accept_prob"]))),
         step_size_mean=float(
             np.mean(np.asarray(extra_fields["adapt_state.step_size"]))
         ),
-        ebfmi_min=float(np.min([energy_bfmi(row) for row in energy])),
+        ebfmi_min=float(np.min(ebfmi)),
         n_leapfrog_steps=int(num_steps.sum()),
         n_draws=int(n_draws),
         n_chains=int(n_chains),
         converged=converged,
     )
-
-
-def rank_normalized_split_r_hat(
-    draws: jt.Float[np.ndarray, "n_chain n_draw"],
-) -> float:
-    """Split `r_hat` of the rank-normalized draws, folded and unfolded.
-
-    The folded statistic ranks the distance from the median instead of the value, so
-    chains that agree on the location but not on the spread are caught as well.
-
-    Args:
-        draws: One site's retained draws, chain dimension first.
-
-    Returns:
-        The larger of the two statistics, nan for a single chain.
-    """
-    if draws.shape[0] < 2:
-        return float("nan")
-    folded = np.abs(draws - np.median(draws))
-    return float(
-        max(
-            numpyro.diagnostics.split_gelman_rubin(_rank_normalize(draws)),
-            numpyro.diagnostics.split_gelman_rubin(_rank_normalize(folded)),
-        )
-    )
-
-
-def bulk_effective_sample_size(
-    draws: jt.Float[np.ndarray, "n_chain n_draw"],
-) -> float:
-    """Effective sample size of the rank-normalized draws, on split chains.
-
-    Args:
-        draws: One site's retained draws, chain dimension first.
-
-    Returns:
-        The count, which for independent draws is the number of draws.
-    """
-    return float(
-        numpyro.diagnostics.effective_sample_size(
-            _split_chains(_rank_normalize(draws))
-        )
-    )
-
-
-def tail_effective_sample_size(
-    draws: jt.Float[np.ndarray, "n_chain n_draw"],
-) -> float:
-    """Smaller of the effective sample sizes of the two `TAIL_QUANTILES` indicators.
-
-    Each quantile is estimated from the indicator series `draws <= quantile`, whose
-    effective sample size is what the corresponding band edge is resolved with.
-
-    Args:
-        draws: One site's retained draws, chain dimension first.
-
-    Returns:
-        The count, nan where the draws are constant and the indicator carries no
-        information.
-    """
-    counts = []
-    for quantile in TAIL_QUANTILES:
-        indicator = (draws <= np.quantile(draws, quantile)).astype(float)
-        if np.all(indicator == indicator.flat[0]):
-            return float("nan")
-        counts.append(
-            float(
-                numpyro.diagnostics.effective_sample_size(_split_chains(indicator))
-            )
-        )
-    return float(min(counts))
-
-
-def energy_bfmi(energy: jt.Float[np.ndarray, " n_draw"]) -> float:
-    """Energy Bayesian fraction of missing information of one chain.
-
-    Args:
-        energy: The Hamiltonian at every retained draw of that chain.
-
-    Returns:
-        `mean((E_n - E_{n-1})^2) / var(E)`, nan for a chain of constant energy.
-    """
-    variance = float(np.var(energy))
-    if variance <= 0.0:
-        return float("nan")
-    return float(np.mean(np.square(np.diff(energy))) / variance)
-
-
-def _worst(
-    values: jt.Float[np.ndarray, " n_site"],
-    reducer: typing.Callable[[jt.Float[np.ndarray, " n_site"]], np.floating],
-) -> float:
-    """The worst site's statistic, nan when no site has one at all.
-
-    Reducing over sites directly would warn and still return nan on an all-nan slice,
-    which is the single-chain case for `r_hat`.
-    """
-    if not np.any(np.isfinite(values)):
-        return float("nan")
-    return float(reducer(values))
-
-
-def _rank_normalize(
-    draws: jt.Float[np.ndarray, "n_chain n_draw"],
-) -> jt.Float[np.ndarray, "n_chain n_draw"]:
-    """Average ranks over all chains, put through the inverse normal transform.
-
-    The offsets 3/8 and 1/4 are those of the Blom transform of Vehtari et al. 2021,
-    eq. (14), which divides by `S + 1/4` where this divides by `S - 1/4`, a shift of the
-    scores of order `1/S`. The transform makes the statistics below independent of the
-    marginal's own shape.
-    """
-    n_total = draws.size
-    ranks = scipy.stats.rankdata(draws, method="average").reshape(draws.shape)
-    return scipy.stats.norm.ppf((ranks - 3.0 / 8.0) / (n_total - 1.0 / 4.0))
-
-
-def _split_chains(
-    draws: jt.Float[np.ndarray, "n_chain n_draw"],
-) -> jt.Float[np.ndarray, "n_split_chain n_half_draw"]:
-    """Each chain cut into its two halves, so a chain drifting within itself is seen."""
-    half = draws.shape[1] // 2
-    return np.concatenate([draws[:, :half], draws[:, -half:]], axis=0)

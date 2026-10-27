@@ -1,20 +1,3 @@
-r"""Download the datasets and the trained surrogates from Hugging Face.
-
-Every file lands where the code reads it: the parquets, their settings JSONs and the
-DESC starting point of their rows in `data/`, the surrogate weights beside their JSONs
-in `trained_models/`, and each
-surrogate's training history under
-`results_plots_tables/results/mhd_equilibrium_forward_models/models_training/`. Both
-repositories are pinned to the revision the thesis results were computed with. A file
-that already exists is left untouched, so a local copy is never overwritten.
-
-    cd src/plasma_state_estimation_for_diagnostic_placement_optimization
-    python mhd_equilibrium_forward_models/download_from_hugging_face.py
-
-The default targets are resolved from this file's location, so it runs from any
-working directory.
-"""
-
 import argparse
 import logging
 import pathlib

@@ -1,13 +1,9 @@
 # The prior on the profile parameters, one NumPyro distribution per sample site: a
 # measured uniform box for `two_power_zero_edge`, a log-uniform box per calibration.
 
-from collections.abc import Iterable, Mapping
+from collections.abc import Iterable
 
-import numpy as np
 import numpyro.distributions
-from plasma_state_estimation_for_diagnostic_placement_optimization.array_types import (
-    NpOrJaxArray,
-)
 from plasma_state_estimation_for_diagnostic_placement_optimization.bayesian_inference import (  # noqa: E501
     profile_parametrization_types,
 )
@@ -133,23 +129,3 @@ def site_names(names: Iterable[str], prefix: str) -> list[str]:
         int(name.split("_")[1]) for name in names if name.startswith(f"{prefix}_")
     )
     return [f"{prefix}_{index}" for index in indices]
-
-
-def stack_profile_columns(
-    columns: Mapping[str, NpOrJaxArray],
-    priors: ProfilePriors,
-    prefix: str,
-) -> np.ndarray:
-    """One profile's per-site draws as a `(n_sample, n_param)` matrix, in index order.
-
-    Args:
-        columns: Draws keyed by site name.
-        priors: The priors whose sites name the columns.
-        prefix: `ne` or `te`, selecting the profile.
-
-    Returns:
-        The stacked draws.
-    """
-    return np.stack(
-        [np.asarray(columns[name]) for name in site_names(priors, prefix)], axis=-1
-    )

@@ -289,8 +289,12 @@ def _scoring_context(
             for point in points
         ]
     )
-    interest = diagnostics_placement_optimization_utils.parameter_indices(
-        posterior, ("ne_",)
+    interest = np.array(
+        [
+            index
+            for index, site in enumerate(posterior.site_names)
+            if site.startswith(("ne_",))
+        ]
     )
     rows_of = jax.jit(
         functools.partial(

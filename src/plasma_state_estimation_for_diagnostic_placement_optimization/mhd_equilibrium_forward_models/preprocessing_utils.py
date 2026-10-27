@@ -65,52 +65,10 @@ def build_y_energy_scale(
     basis: surrogate_types.EquilibriumBasisSpecification,
     energy_scale: float = 1.5,
 ) -> Float[NpOrJaxArray, " n_y"]:
-    """Build the per-entry weight the flat target is divided by before z-scoring.
-
-    Each spectral coefficient is weighted by `exp(-norm(l, m, n) / energy_scale)`, floored
-    at 1e-6 so the division stays finite. The iota block and `Psi` are not spectral and
-    get unit weight; z-scoring alone handles their scale.
-
-    **These weights do not affect the training target: `energy_scale` is inert.**
-    `transform_y` divides by them and then z-scores each entry, and a per-entry z-score
-    cancels a per-entry scaling exactly:
-    `(y / s - mean(y / s)) / std(y / s) == (y - mean(y)) / std(y)`. Measured on the real
-    dataset 2026-08-26: moving `energy_scale` from 1.5 to 50, which lifts the weights
-    from spanning 2.0e-6..1 to 0.675..1, changed the transformed target by 1.4e-4
-    relative, i.e. float32 rounding. So the step does not achieve what it was written
-    for, which was to stop the small high-order coefficients being invisible to a mean
-    squared error.
-
-    It is kept anyway, because neither obvious repair is an improvement. Scoring one
-    identical network on ten validation equilibria:
-
-    - the pipeline as written, which by the cancellation above is just z-scoring the raw
-      target, gives 1.08e-3 m flux-surface error;
-    - keeping these weights and dropping the z-score gives 1.31e-3 m;
-    - applying them *after* the z-score, so that they finally do bite, gives 4.97e-3 m,
-      with the iota RMSE blowing up from 1.5e-3 to 8.2 because the inverse transform
-      then divides by weights as small as 2.0e-6 and amplifies any latent error by five
-      orders of magnitude.
-
-    So per-entry z-scoring is what earns the accuracy, and this weighting either does
-    nothing or does harm. Read the first row as the no-weighting case, not as evidence
-    that the weighting helps.
-
-    Repeating all three with the PCA stage removed, so every variant predicts the full
-    flat target, makes the third one's failure unmistakable: 6.5e2 m. With PCA it looked
-    like 4.97e-3 m only because the low-rank projection was quietly suppressing the
-    amplified error. The pipeline as written barely moves, 1.14e-3 m against 1.08e-3 m
-    with PCA. Incidentally that measures what the PCA is worth: almost nothing for the
-    geometry, but the iota RMSE goes from 1.53e-3 with it to 1.34e-2 without, so its
-    real job is denoising the iota block rather than compressing coefficients.
-
-    Args:
-        basis: Basis supplying the three mode tables and the block widths.
-        energy_scale: Decay length of the weights.
-
-    Returns:
-        A positive weight per entry of `y`, in float32.
-    """
+    """Per-entry weight the flat target is divided by before z-scoring: each spectral
+    coefficient gets `exp(-norm(l, m, n) / energy_scale)`, floored at 1e-6, and the
+    iota block and `Psi` get one. The z-score cancels any per-entry weight, so the
+    training target does not depend on `energy_scale`."""
     return np.concatenate(
         [
             _mode_weights(basis.r_modes, energy_scale),

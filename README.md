@@ -95,24 +95,10 @@ keeps files that already exist. If pip has to build `netcdf4` from source becaus
 wheel exists for your platform, install the netCDF C library first
 (`sudo apt-get install -y libnetcdf-dev` or `brew install netcdf`).
 
-Alternatively, the Docker image holds the same pinned versions. The checkout is mounted at
-`/workspace`, so downloads and results land in it and a change to `src/` needs no rebuild:
-
-```
-mkdir -p ~/.cache/huggingface
-docker build -t diagnostics-bayesian-experimental-design .
-docker run --rm -it --memory 24g --user "$(id -u):$(id -g)" -e HOME=/tmp \
-    -v "$HOME/.cache/huggingface":/tmp/.cache/huggingface -v "$(pwd)":/workspace \
-    diagnostics-bayesian-experimental-design python path/to/script.py
-```
-
-`--memory` caps the container, so a process that exceeds it is killed instead of
-exhausting the host. The Hugging Face mount passes in the login of `hf auth login`.
-
 ## Reproducing the thesis results
 
-Every command runs from this folder with the environment active; in Docker, put the
-`docker run ...` prefix in front of it. Notebook paths are relative to
+Every command runs from this folder with the environment active. Notebook paths are
+relative to
 `src/plasma_state_estimation_for_diagnostic_placement_optimization/`, except those under
 `data/`. Open each notebook with the `diagnostics-bed` kernel and run all cells.
 
@@ -218,7 +204,7 @@ without repeating its finished runs (all but `self_consistency_analysis`).
 ## Tests
 
 ```
-pytest .                    # 106 unit tests, about 2 min, no data needed
+pytest .                    # 99 unit tests, about 2 min, no data needed
 pytest . -k <test_name>     # one test
-pytest . -m integration     # 3 slow tests, need the download of the installation
+pytest . -m integration     # 2 slow tests, need the download of the installation
 ```

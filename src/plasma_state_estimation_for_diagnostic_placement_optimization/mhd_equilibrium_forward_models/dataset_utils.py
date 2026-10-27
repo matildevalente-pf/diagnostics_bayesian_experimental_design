@@ -10,7 +10,7 @@ import pathlib
 
 import numpy as np
 import pandas as pd
-from jaxtyping import Float, Int
+from jaxtyping import Int
 from plasma_state_estimation_for_diagnostic_placement_optimization.array_types import (
     NpOrJaxArray,
 )
@@ -109,19 +109,34 @@ def load_dataset(
 
     return dataset_types.RawDataset(
         basis=metadata.basis,
-        pressure=_stack(frame, "pressure"),
+        pressure=np.stack(
+            [np.asarray(row, dtype=float) for row in frame["pressure"]], axis=0
+        ),
         y=np.concatenate(
             [
-                _stack(frame, "R_lmn"),
-                _stack(frame, "Z_lmn"),
-                _stack(frame, "lambda_lmn"),
-                _stack(frame, "iotaf"),
+                np.stack(
+                    [np.asarray(row, dtype=float) for row in frame["R_lmn"]], axis=0
+                ),
+                np.stack(
+                    [np.asarray(row, dtype=float) for row in frame["Z_lmn"]], axis=0
+                ),
+                np.stack(
+                    [np.asarray(row, dtype=float) for row in frame["lambda_lmn"]],
+                    axis=0,
+                ),
+                np.stack(
+                    [np.asarray(row, dtype=float) for row in frame["iotaf"]], axis=0
+                ),
                 frame["Psi"].to_numpy(dtype=float)[:, None],
             ],
             axis=1,
         ),
-        pressure_knots=_stack(frame, "pressure_knots"),
-        pressure_params=_stack(frame, "pressure_params"),
+        pressure_knots=np.stack(
+            [np.asarray(row, dtype=float) for row in frame["pressure_knots"]], axis=0
+        ),
+        pressure_params=np.stack(
+            [np.asarray(row, dtype=float) for row in frame["pressure_params"]], axis=0
+        ),
         fnorm_vol=frame[FNORM_COLUMN].to_numpy(dtype=float),
         beta_vol=frame["beta_volume_averaged"].to_numpy(dtype=float),
         equilibrium_ids=frame["desc_equilibrium_id"].tolist(),
@@ -291,18 +306,3 @@ def assert_compatible_bases(
     for name in ("pressure_rho_grid", "iota_rho_grid"):
         if not np.allclose(getattr(left, name), getattr(right, name)):
             raise ValueError(f"Incompatible {name}.")
-
-
-def _stack(
-    frame: pd.DataFrame, column: str
-) -> Float[NpOrJaxArray, "n_samples n_values"]:
-    """Stack a parquet column of equal-length lists into a 2D array.
-
-    Args:
-        frame: Frame holding the column.
-        column: Name of the column.
-
-    Returns:
-        The column as a float array with one row per sample.
-    """
-    return np.stack([np.asarray(row, dtype=float) for row in frame[column]], axis=0)

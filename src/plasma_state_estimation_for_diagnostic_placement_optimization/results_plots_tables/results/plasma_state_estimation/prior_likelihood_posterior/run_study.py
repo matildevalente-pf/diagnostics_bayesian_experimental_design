@@ -395,7 +395,13 @@ def prior_profile_curves(
         inference_run_utils.profile_samples_in_si(
             settings,
             name,
-            priors_utils.stack_profile_columns(columns, priors, prefix),
+            np.stack(
+                [
+                    np.asarray(columns[site])
+                    for site in priors_utils.site_names(priors, prefix)
+                ],
+                axis=-1,
+            ),
             rho,
         )
         for name, prefix in (

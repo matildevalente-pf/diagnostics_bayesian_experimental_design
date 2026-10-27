@@ -866,7 +866,7 @@ def _newton_step(
     # candidate.
     full = _newton_state(
         geometry,
-        *_fixed_up_candidate(
+        *_take_newton_step(
             state.rho,
             state.theta,
             numerator_rho / determinant,
@@ -935,7 +935,7 @@ def _damped_candidates(
     # across the `det` discontinuity at `rho = 1` of the beyond-boundary continuation.
     determinant_blend = 0.75 * determinant + 0.25 * determinant_next
     damping = jnp.asarray(_DAMPING_FACTORS)[:, None]
-    candidate_rho, candidate_theta = _fixed_up_candidate(
+    candidate_rho, candidate_theta = _take_newton_step(
         state.rho[None, :],
         state.theta[None, :],
         damping * (numerator_rho / determinant_blend)[None, :],
@@ -970,16 +970,17 @@ def _damped_candidates(
     )
 
 
-def _fixed_up_candidate(
+def _take_newton_step(
     rho: Float[jax.Array, "... n_point"],
     theta: Float[jax.Array, "... n_point"],
     step_rho: Float[jax.Array, "... n_point"],
     step_theta: Float[jax.Array, "... n_point"],
     rho_ceiling: float,
 ) -> tuple[Float[jax.Array, "... n_point"], Float[jax.Array, "... n_point"]]:
-    """A Newton candidate after the standard fixups: flip `theta` by `pi` when `rho`
-    steps negative, wrap `theta`, clip `rho` to its range, and keep the current iterate
-    for a non-finite step (degenerate Jacobian on the magnetic axis)."""
+    """One Newton step in `(rho, theta)`: a step past the magnetic axis (`rho < 0`)
+    continues on the opposite side, i.e. `theta + pi`; `theta` is wrapped, `rho`
+    clipped to its range, and a non-finite step (degenerate Jacobian on the axis)
+    keeps the current iterate."""
     candidate_rho = rho - step_rho
     candidate_theta = jnp.where(
         candidate_rho < 0, theta - step_theta + jnp.pi, theta - step_theta

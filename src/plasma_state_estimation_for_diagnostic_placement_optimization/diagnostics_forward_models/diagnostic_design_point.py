@@ -35,9 +35,7 @@ DEFAULT_CHORD_SURFACE_ANGLES = [
     [-2.1034183528, -1.0139531101],
     [-1.9382830959, -1.4074045709],
 ]
-"""Surface angles of the pinned five parallel horizontal interferometer chords, spread
-over 80% of the plasma's vertical extent at `MACHINE_SCALE`, the middle one on
-the laser path (`parallel_chords` on the reference equilibrium with `margin = 0.1`)."""
+"""Interferometer reference design of Fig. 2.13(a) of the thesis."""
 
 TE_REFERENCE_EV = 1.0e4
 PRESSURE_REFERENCE_PA = 2.0e6
@@ -160,13 +158,6 @@ class DiagnosticDesignPoint(pydantic.BaseModel):
         if not isinstance(data, dict):
             return data
         return {key.replace("wall", "surface"): value for key, value in data.items()}
-
-    # Neither diagnostic's uncertainty constants are design-point knobs: they are fixed
-    # by the instrument literature and live in `interferometer_utils`
-    # (`LINE_DENSITY_NOISE_M2`, the default of `interferometer_sigma` in the inference
-    # settings) and in `thomson_scattering_utils` (the noise curve and the minimum
-    # detectable state).
-    # Only the choice of which Thomson model applies is a design decision.
 
 
 class DiagnosticPlacement(pydantic.BaseModel):

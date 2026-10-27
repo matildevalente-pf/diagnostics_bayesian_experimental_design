@@ -253,7 +253,11 @@ def train_node(
     )
     stage = result.stages[-1]
     objective = min(
-        training_utils.validation_criterion(record, stage.selection_term)
+        {
+            "total": record.validation_total,
+            "data": record.validation_data,
+            "fnorm": record.validation_fnorm,
+        }[stage.selection_term]
         for record in stage.history
     )
     stored_model = ""

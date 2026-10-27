@@ -74,31 +74,6 @@ def build_posterior(
     )
 
 
-def unconstrain_samples(
-    posterior: Posterior,
-    samples: Mapping[str, jt.Float[NpOrJaxArray, " n_sample"]],
-) -> jt.Float[jax.Array, "n_sample n_param"]:
-    """Map a batch of physical parameter draws to unconstrained vectors `z`.
-
-    Applies the inverse of each stored transform elementwise, so the forward models are
-    not evaluated.
-
-    Args:
-        posterior: The posterior whose transforms and order are used.
-        samples: Per-site draws, each of shape `(n_sample,)`.
-
-    Returns:
-        One row per draw, in `posterior.site_names` order.
-    """
-    return jnp.stack(
-        [
-            jnp.asarray(posterior.transforms[name].inv(jnp.asarray(samples[name])))
-            for name in posterior.site_names
-        ],
-        axis=-1,
-    )
-
-
 def _site_names(
     unconstrained: Mapping[str, jt.Float[NpOrJaxArray, ""]],
 ) -> tuple[str, ...]:

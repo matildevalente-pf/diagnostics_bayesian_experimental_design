@@ -620,8 +620,12 @@ def _scoring_context(
             for point in points
         ]
     )
-    interest = diagnostics_placement_optimization_utils.parameter_indices(
-        posterior, ("ne_", "te_")
+    interest = np.array(
+        [
+            index
+            for index, site in enumerate(posterior.site_names)
+            if site.startswith(("ne_", "te_"))
+        ]
     )
     thomson_rows_of = jax.jit(
         functools.partial(
@@ -647,8 +651,12 @@ def _scoring_context(
         points=points,
         precisions=precisions,
         interest=interest,
-        density_interest=diagnostics_placement_optimization_utils.parameter_indices(
-            posterior, ("ne_",)
+        density_interest=np.array(
+            [
+                index
+                for index, site in enumerate(posterior.site_names)
+                if site.startswith(("ne_",))
+            ]
         ),
         thomson_rows_of=thomson_rows_of,
         chord_rows_of=chord_rows_of,

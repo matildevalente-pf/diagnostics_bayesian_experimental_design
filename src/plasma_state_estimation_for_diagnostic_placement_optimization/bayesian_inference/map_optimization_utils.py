@@ -133,12 +133,16 @@ def run_map(
     constrain = jax.jit(posterior.constrain)
     potential = jax.jit(posterior.potential)
     gradient = jax.jit(jax.grad(posterior.potential))
-    initial_points = posterior_utils.unconstrain_samples(
-        posterior,
-        {
-            name: jnp.stack([start[name] for start in starts])
+    initial_points = jnp.stack(
+        [
+            jnp.asarray(
+                posterior.transforms[name].inv(
+                    jnp.stack([start[name] for start in starts])
+                )
+            )
             for name in posterior.site_names
-        },
+        ],
+        axis=-1,
     )
     for index, (start, z) in enumerate(zip(starts, initial_points)):
         started = time.perf_counter()

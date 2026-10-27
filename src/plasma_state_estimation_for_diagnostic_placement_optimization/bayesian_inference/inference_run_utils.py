@@ -696,8 +696,20 @@ def _constrained_samples(
         for column, name in enumerate(posterior.site_names)
     }
     return (
-        priors_utils.stack_profile_columns(columns, priors, "ne"),
-        priors_utils.stack_profile_columns(columns, priors, "te"),
+        np.stack(
+            [
+                np.asarray(columns[name])
+                for name in priors_utils.site_names(priors, "ne")
+            ],
+            axis=-1,
+        ),
+        np.stack(
+            [
+                np.asarray(columns[name])
+                for name in priors_utils.site_names(priors, "te")
+            ],
+            axis=-1,
+        ),
     )
 
 

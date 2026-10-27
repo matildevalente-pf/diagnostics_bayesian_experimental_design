@@ -1,30 +1,7 @@
 r"""Train one MLP equilibrium surrogate and store it under `trained_models/`.
 
-The model is picked by name from `model_configs.MODEL_CONFIGURATIONS`, which fixes its
-architecture, its target space and the curriculum it is trained through. The dataset is read
-from `data/`, filtered at its own recommended force-residual threshold, and split by the
-pinned id lists in its settings file, so two models are always trained and validated on the
-same rows.
-
-Every run is stamped with the time it finished, and that stamp names both of the
-things it writes: the model, as `trained_models/<timestamp>_<model>.npz` plus its
-`.json`, and the run record under
-`results_plots_tables/results/mhd_equilibrium_forward_models/models_training/`, holding
-the per-epoch history as a CSV next to the configuration and the summary. So a model
-never overwrites the one before it and always pairs by name with the run that produced
-it, and several runs of one configuration sit side by side. `--description` is what
-tells those apart afterwards, which is why it is required.
-
-    # a real run
     python src/plasma_state_estimation_for_diagnostic_placement_optimization/mhd_equilibrium_forward_models/train_surrogate.py \\
         --model mlp_data_fnorm_only_pca_hand_tuned --description "thesis model"
-
-    # a smoke run: two epochs per stage, 64 rows
-    python src/plasma_state_estimation_for_diagnostic_placement_optimization/mhd_equilibrium_forward_models/train_surrogate.py \\
-        --model mlp_data_fnorm_only_pca_hand_tuned --max-epochs-per-stage 2 --n-train-rows 64 \\
-        --description "smoke run"
-
-Run it from the folder's top directory, or from anywhere with `--data-dir` given.
 """
 
 import argparse

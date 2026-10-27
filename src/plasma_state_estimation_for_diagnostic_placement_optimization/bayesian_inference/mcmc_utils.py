@@ -150,9 +150,14 @@ def run_mcmc(
     seconds = time.perf_counter() - started
     by_chain = mcmc.get_samples(group_by_chain=True)
     extra_fields = mcmc.get_extra_fields(group_by_chain=True)
+    samples = mcmc.get_samples()
     return McmcResult(
-        unconstrained_samples=np.asarray(
-            posterior_utils.unconstrain_samples(posterior, mcmc.get_samples())
+        unconstrained_samples=np.stack(
+            [
+                np.asarray(posterior.transforms[name].inv(jnp.asarray(samples[name])))
+                for name in posterior.site_names
+            ],
+            axis=-1,
         ),
         chain_samples=np.stack(
             [np.asarray(by_chain[name]) for name in posterior.site_names], axis=-1

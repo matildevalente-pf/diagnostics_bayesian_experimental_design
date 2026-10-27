@@ -105,27 +105,6 @@ def truth_point(
     return z
 
 
-def parameter_indices(
-    posterior: posterior_utils.Posterior, prefixes: tuple[str, ...]
-) -> jt.Int[np.ndarray, " n_interest"]:
-    """Positions in `z` of the sites whose name starts with one of `prefixes`.
-
-    Args:
-        posterior: The posterior whose site order defines `z`.
-        prefixes: Site name prefixes, such as `("ne_",)` or `("ne_", "te_")`.
-
-    Returns:
-        The indices, in `z` order.
-    """
-    return np.array(
-        [
-            index
-            for index, name in enumerate(posterior.site_names)
-            if name.startswith(prefixes)
-        ]
-    )
-
-
 def information_gain_bits(
     information: jt.Float[jax.Array, "*batch n_param n_param"],
     precision: jt.Float[jax.Array, "*batch n_param n_param"],

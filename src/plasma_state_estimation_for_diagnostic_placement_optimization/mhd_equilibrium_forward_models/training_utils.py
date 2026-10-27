@@ -381,7 +381,12 @@ def run_stage(
                 validation_fnorm,
             )
 
-        if stopping.update(epoch, validation_criterion(record, stage.selection_term)):
+        criterion = {
+            "total": record.validation_total,
+            "data": record.validation_data,
+            "fnorm": record.validation_fnorm,
+        }[stage.selection_term]
+        if stopping.update(epoch, criterion):
             best_params, selected = params, record
         # Only the rate changes; the optimizer keeps its moments across a reduction.
         opt_state = optax.tree_utils.tree_set(
@@ -451,7 +456,13 @@ def loss_terms(
     zero. Dropout is on when a `step_key` is given, so this serves the gradient step
     and the validation alike.
     """
-    latent = apply_mlp(mlp, params, rows.x, step_key)
+    # Cast because `apply` is typed for its mutable-collections case, a tuple, as well.
+    latent = cast(
+        jax.Array,
+        mlp.apply(params, rows.x, training=False)
+        if step_key is None
+        else mlp.apply(params, rows.x, training=True, rngs={"dropout": step_key}),
+    )
     zero = jnp.zeros((), dtype=jnp.float32)
     data = jnp.mean((latent - rows.y_latent) ** 2) if use_data else zero
     fnorm = zero
@@ -474,7 +485,7 @@ def calibrate_fnorm_weight(
     """Weight that gives the force-residual term the data term's magnitude at the
     stage's start, or 0.1 when the data term is off; measured dropout-off on one
     batch. The term is a logarithm of a residual below one, so it keeps its own sign."""
-    latent = apply_mlp(mlp, params, rows.x)
+    latent = cast(jax.Array, mlp.apply(params, rows.x, training=False))
     unweighted = abs(
         float(jnp.mean(jax.vmap(fnorm_loss)(decode(latent), rows.fnorm_target)))
     )
@@ -482,32 +493,6 @@ def calibrate_fnorm_weight(
         return 1.0
     target = float(jnp.mean((latent - rows.y_latent) ** 2)) if use_data else 0.1
     return target / unweighted
-
-
-def apply_mlp(
-    mlp: mlp_utils.MLP,
-    params: flax.typing.VariableDict,
-    x: Float[NpOrJaxArray, "n_rows n_rho"],
-    step_key: jax.Array | None = None,
-) -> Float[jax.Array, "n_rows n_latent"]:
-    """The network's latent for `x`; dropout is on when a `step_key` is given."""
-    # Cast because `apply` is typed for its mutable-collections case, a tuple, as well.
-    if step_key is None:
-        return cast(jax.Array, mlp.apply(params, x, training=False))
-    return cast(
-        jax.Array, mlp.apply(params, x, training=True, rngs={"dropout": step_key})
-    )
-
-
-def validation_criterion(
-    record: EpochRecord, selection_term: mlp_types.SelectionTerm
-) -> float:
-    """The validation term a stage selects on, read out of one epoch of its history."""
-    return {
-        "total": record.validation_total,
-        "data": record.validation_data,
-        "fnorm": record.validation_fnorm,
-    }[selection_term]
 
 
 def build_rows(

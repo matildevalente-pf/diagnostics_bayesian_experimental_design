@@ -38,12 +38,7 @@ DEFAULT_SURFACE_OFFSET: float = 0.14
 
 THETA_MIN_DEG: float = 10.0
 THETA_MAX_DEG: float = 170.0
-"""Hard bounds on the scattering angle.
-
-Outside these the layout is unusable: the
-scattering length ``dL = w_fiber / (M sin(theta))`` diverges on the beam axis, and the
-optic would have to sit in the beam.
-"""
+"""Hard bounds on the scattering angle."""
 
 LOW_ANGLE_RANGE_DEG: tuple[float, float] = (10.0, 50.0)
 """Scattering-angle range of the forward-scatter optic set, which views the high-field
@@ -122,18 +117,7 @@ def design_surface_curve(
     n_ray: int = 360,
     n_bisect: int = 40,
 ) -> jt.Float[np.ndarray, "2 n_ray"]:
-    """Surface at constant distance `offset` outside a closed curve.
-
-    The `offset` level set of the distance function, found by bisecting along rays from
-    the centroid. This is **not** a normal offset
-    (`surface_utils.generate_offset_surface`): a normal offset self-intersects wherever
-    the offset exceeds the local radius of curvature, which happens immediately on a thin
-    or concave cross-section. The level set stays a valid simple closed curve at any
-    offset, rounding off concave corners instead of folding over.
-
-    Assumes the result is star-shaped about the plasma centroid, which holds for these
-    cross-sections and is the same assumption `surface_point_at_angle` makes.
-    """
+    """Surface at constant distance `offset` outside a closed curve."""
     curve = np.asarray(curve)
     centre = curve.mean(axis=1)
     angle = np.linspace(-np.pi, np.pi, n_ray, endpoint=False)

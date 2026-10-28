@@ -1,7 +1,11 @@
 # Plasma state estimation for diagnostic placement optimization
 
 Code of the Master's thesis *Bayesian Experimental Design of Fusion Plasma Diagnostics
-with Self-Consistent MHD Equilibria* (Technical University of Munich, 2026).
+with Self-Consistent MHD Equilibria* (Technical University of Munich, 2026). The
+datasets and the trained surrogates are on Hugging Face:
+
+- Datasets: <https://huggingface.co/datasets/proxima-fusion/diagnostics-bayesian-experimental-design-datasets>
+- Trained surrogates: <https://huggingface.co/proxima-fusion/diagnostics-bayesian-experimental-design-surrogates>
 
 ## Abstract
 
@@ -17,32 +21,31 @@ plasma state from the diagnostics signals is an inverse problem. This is commonl
 by Bayesian inference, which yields the plasma state together with its uncertainty.
 
 How precisely the plasma state is inferred depends on the design and placement of the
-diagnostics, which Bayesian experimental design ranks by their expected information gain
-of their measurements on the plasma state. Building on work at Wendelstein 7-X (W7-X),
-the world's largest experimental stellarator, this work develops a general diagnostic
-design method that extends previous approaches in three main ways. First, the placement
-of several diagnostics is optimized jointly rather than one diagnostic at a time.
-Second, a physics-informed neural-network surrogate approximates the MHD equilibrium of
-each plasma state from its pressure in milliseconds. The design thereby accounts for the
-displacement of the flux surfaces and for the different plasma states expected in
-operation. Third, the readings predicted by the diagnostic models are linearized about
-each expected plasma state, that is, approximated through their sensitivity to small
-changes of the profiles. The expected information gain then follows in closed form from
-these sensitivities, which makes the evaluation of each candidate layout faster than
-with the Monte Carlo sampling of previous approaches.
+diagnostics. This work builds on earlier work at Wendelstein 7-X (W7-X), the world's
+largest experimental stellarator, and develops a Bayesian method for placing plasma
+diagnostics. It ranks candidate layouts by the expected information gain of their
+measurements on the plasma state and extends previous approaches in four main ways.
+First, several diagnostics are placed jointly rather than one at a time. Second, a
+physics-informed neural-network surrogate approximates in milliseconds the MHD
+equilibrium of each plasma state expected in operation. Third, linearizing the predicted
+readings about each of these plasma states gives the expected information gain in closed
+form, faster than Monte Carlo sampling. Finally, one calibration correction per
+polychromator is inferred with the profiles.
 
-The method is applied to a Thomson scattering system, which measures $n_e$ and $T_e$
-locally, and an interferometer, which measures the line-integrated $n_e$. The plasma
+The method is applied to a Thomson scattering and interferometer system. The plasma
 configuration is quasi-isodynamic and shares the main properties of Alpha, the
 stellarator demonstrator of Proxima Fusion and the Max Planck Institute for Plasma
-Physics. Relative to the initial layout, the joint placement lowers the errors of the
-inferred $n_e$ and $T_e$ profiles by 34.9 and 39.0% and narrows their uncertainty bands
-by 53.0 and 13.9%. Inferring each plasma state with its own equilibrium, instead of a
-fixed one, lowers these errors by 16.6 and 22.2%. Finally, one calibration correction
-per polychromator is inferred with the profiles, which could reveal a drift of the
-Thomson scattering calibration and reduce the recalibration downtime of large fusion
-experiments. This work thereby provides a fast and integrated method to design and place
-plasma diagnostics within the stellarator design cycle.
+Physics. Relative to the initial layout, the jointly optimized layout lowers the errors
+of the inferred $n_e$ and $T_e$ profiles by 34.9 and 39.0% and narrows their uncertainty
+bands by 53.0 and 13.9%. Inferring each plasma state with its own equilibrium, instead
+of a fixed one, lowers the mean $n_e$ and $T_e$ errors by 14.7 and 16.3%, on seven and
+six of the eight plasma states, at unchanged uncertainty bands. However, a placement
+optimization with a fixed equilibrium selects the same layout. With two or more
+interferometer chords, the interferometer, rather than the calibration prior, sets the
+width of the density band, which relaxes, but does not remove, the accuracy required of
+the absolute Thomson scattering calibration. This work thereby provides a fast and
+integrated method to design and place plasma diagnostics within the stellarator design
+cycle.
 
 ## Structure
 
@@ -77,14 +80,13 @@ installation below downloads them at the revision the thesis used:
 Needs Python 3.12, the version the pinned packages were tested with.
 
 ```
-gh repo clone matildevalente-pf/diagnostics_bayesian_experimental_design
+git clone https://github.com/matildevalente-pf/diagnostics_bayesian_experimental_design.git
 cd diagnostics_bayesian_experimental_design
 python3.12 -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
 pip install -e ".[test,notebooks]"
 python -m ipykernel install --user --name diagnostics-bed --display-name "diagnostics-bed (Python 3.12)"
-hf auth login        # while the Hugging Face repositories are private
 python src/plasma_state_estimation_for_diagnostic_placement_optimization/mhd_equilibrium_forward_models/download_from_hugging_face.py
 ```
 
